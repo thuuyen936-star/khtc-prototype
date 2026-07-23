@@ -198,6 +198,8 @@
        font-weight:600; font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.04em;
        white-space:nowrap; border-bottom:1px solid var(--border); position:relative; }
   td { padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; font-size:var(--fs-small); }
+  /* Đặt màu ở tbody (không phải td) để kế thừa tự nhiên — không tranh specificity với .buy/.sell/.link/badge-id... */
+  #bbg-tbody, #child-tbody { color: var(--text-title); }
   #bbg-tbody tr, #child-tbody tr { background: var(--row-bg); }
   /* Instructions BBG — cố định chiều rộng, cắt bớt nội dung dài, hover để xem toàn bộ (title) */
   th.col-instructions, td.col-instructions { max-width:150px; width:150px; }
@@ -250,6 +252,7 @@
   .badge-edited   { color: #C98AFF;      background: rgba(201,138,255,.14); }
   .badge-matched  { color: var(--buy);   background: rgba(95,194,85,.14); }
   .badge-part     { color: var(--buy);   background: rgba(95,194,85,.14); }
+  .badge-awaiting { color: var(--warning); background: rgba(255,204,0,.16); }
 
   /* ===== Order entry panel (Đặt lệnh tổng) ===== */
   .order-row1 { display:flex; gap:14px; padding:14px; align-items:end; flex-wrap:wrap; }
@@ -263,10 +266,26 @@
   .field.wide { flex:0 0 auto; width:128px; min-width:128px; }
   .field { display:flex; flex-direction:column; gap:5px; min-width:110px; }
   .field.grow { flex:1; min-width:220px; }
-  .field label { font-size:var(--fs-small); color: var(--text-dim); }
+  .field label { font-size:var(--fs-small); color: var(--text-title); }
   .field input, .field select { background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
-        padding:8px 10px; color:var(--text); font-size:var(--fs-small); }
+        padding:8px 10px; color:var(--text-title); font-size:var(--fs-small); }
   .field input[readonly] { background:rgba(38,129,224,.08); color: var(--blue); border-color: var(--blue); }
+  /* Danh sách gợi ý Tài khoản — lọc động theo ký tự đang nhập (Số tài khoản - Tên tài khoản) */
+  .account-suggest-list { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--input-bg);
+        border:1px solid var(--border); border-radius:var(--radius-btn); max-height:220px; overflow-y:auto; z-index:20;
+        box-shadow:0 6px 16px rgba(0,0,0,.35); }
+  .account-suggest-list[hidden] { display:none; }
+  .account-suggest-item { padding:8px 10px; cursor:pointer; font-size:var(--fs-small); color:var(--text-title);
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .account-suggest-item:hover { background:rgba(38,129,224,.15); }
+  .account-suggest-item .code { color:var(--blue); font-weight:600; margin-right:6px; }
+  /* Sửa lệnh con: các trường không cho sửa vẫn phải trông "đang hoạt động", khác với lúc khóa toàn bộ khung */
+  .field select.field-context-locked:disabled { opacity:1; cursor:default; background:rgba(38,129,224,.08); color: var(--blue); border-color: var(--blue); }
+  .side-toggle.side-toggle-context span { pointer-events:none; }
+  /* Viền khung Đặt lệnh theo trạng thái đang hoạt động (kể cả đang sửa lệnh con):
+     xanh lá = đang Mua, đỏ = đang Bán — xem updatePanelBorder() */
+  #panel-order-entry.panel-border-buy  { border-color: var(--buy);  box-shadow: inset 0 0 0 1px var(--buy); }
+  #panel-order-entry.panel-border-sell { border-color: var(--sell); box-shadow: inset 0 0 0 1px var(--sell); }
   .side-toggle { display:flex; gap:4px; padding:4px; background: var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn); overflow:hidden; }
   .side-toggle span { flex:1; text-align:center; padding:8px 18px; border-radius:var(--radius-sm); font-size:var(--fs-small); font-weight:700; cursor:pointer; transition:all .15s; }
   .side-toggle .side-active-buy { background:linear-gradient(135deg,var(--buy),var(--buy-dark)); color:#fff; }
@@ -274,7 +293,7 @@
   .side-toggle .side-inactive { background:transparent; color:var(--text-dim); }
   .btn-action { padding:9px 18px; border-radius:var(--radius-btn); font-size:var(--fs-small); font-weight:700; cursor:pointer; border:none; }
   .btn-action.buy { background:linear-gradient(135deg,var(--buy),var(--buy-dark)); color:#fff; }
-  .btn-action.cancel { background:linear-gradient(135deg,var(--sell),var(--sell-dark)); color:#fff; }
+  .btn-action.sell { background:linear-gradient(135deg,var(--sell),var(--sell-dark)); color:#fff; }
   .btn-action.ghost { background:var(--grey-btn); border:1px solid var(--border); color:var(--text); }
   .btn-action:disabled { opacity:.4; cursor:not-allowed; pointer-events:none; }
 
@@ -284,7 +303,6 @@
   #bbg-tbody tr { cursor:pointer; }
   .status-dot { cursor:pointer; }
   .side-toggle span { cursor:pointer; }
-  .btn-action.cancel[hidden] { display:none; }
   .row-new-flash { animation: flashNew 1.2s ease-out; }
   @keyframes flashNew { 0% { background:rgba(95,194,85,.18); } 100% { background:transparent; } }
 
@@ -497,26 +515,28 @@
                 <th title="Giữ nguyên — chấm trạng thái Active/Inactive">●</th>
                 <th class="sortable">Route</th>
                 <th class="sortable" title="Check price" style="width:64px;">Chk Px</th>
-                <th class="sortable">Create Time</th>
-                <th class="sortable col-instructions">Instructions BBG</th>
-                <th class="sortable">Status</th>
                 <th class="sortable">Account</th>
                 <th class="sortable">BBG Account</th>
+                <th class="sortable col-instructions">Instructions BBG</th>
+                <th class="sortable">Status</th>
                 <th class="sortable">Side</th>
                 <th class="sortable">Sec</th>
                 <th class="sortable">Qty</th>
                 <th class="col-new sortable">LmtPx</th>
-                <th class="col-new sortable">REM BAL</th>
                 <th class="col-new sortable">Fill Qty</th>
                 <th class="col-new sortable">Avg Px</th>
                 <th class="col-new sortable">Interval VWAP</th>
-                <th class="col-new sortable">Số hiệu lệnh</th>
-                <th class="col-new sortable">Loại giá</th>
-                <th class="col-new sortable">KL đã đặt</th>
-                <th class="col-new sortable">KL hủy</th>
+                <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% Complete</th>
+                <th class="col-new sortable" title="Tỷ lệ KL đã khớp / KL giao dịch toàn thị trường (TT) của mã CK">% Khớp/TT</th>
+                <th class="col-new sortable">REM BAL</th>
+                <th class="col-new sortable" title="Tổng khối lượng còn lại (chưa khớp) của các lệnh con còn hiệu lực">REM PLACE</th>
                 <th class="col-new sortable" title="Khối lượng x Giá đặt">Net Value</th>
                 <th class="col-new sortable" title="Giá trị đã khớp của các lệnh con liên quan">Filled Value</th>
-                <th class="col-new sortable" title="Tỷ lệ KL đã khớp / KL giao dịch toàn thị trường của mã CK">% Khớp</th>
+                <th class="col-new sortable">Số hiệu lệnh</th>
+                <th class="sortable">Create Time</th>
+                <th class="col-new sortable">KL hủy</th>
+                <th class="col-new sortable">Trade ID</th>
+                <th class="col-new sortable">Ghi chú</th>
               </tr>
               <tr class="search-row">
                 <th></th>
@@ -542,126 +562,11 @@
                 <th><input oninput="updateTableSearch(this,'bbg',20)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'bbg',21)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'bbg',22)" placeholder=""></th>
+                <th><input oninput="updateTableSearch(this,'bbg',23)" placeholder=""></th>
+                <th><input oninput="updateTableSearch(this,'bbg',24)" placeholder=""></th>
               </tr>
             </thead>
-            <tbody id="bbg-tbody">
-              <tr id="row-LT20260615-01" data-order-id="LT20260615-01"
-                  data-side="Mua" data-account="SCBB116688" data-subaccount="0001067447"
-                  data-symbol="HPG" data-price="24,600" data-qty="5,000"
-                  data-fillqty="3,200" data-avgpx="24,580" data-vwap="24,615"
-                  data-instructions="DNR - Do not reduce, giữ nguyên giá khi có cổ tức" data-note="Ưu tiên khớp trước 14h00" data-marketvol="8,500,000">
-                <td><span class="status-dot"></span></td>
-                <td>BBG</td>
-                <td class="col-checkpx">3</td>
-                <td>13:34:45</td>
-                <td class="col-instructions"><span class="col-instructions-text" title="DNR - Do not reduce, giữ nguyên giá khi có cổ tức">DNR - Do not reduce, giữ nguyên giá khi có cổ tức</span></td>
-                <td><span class="col-status badge-part">Khớp 1 phần</span></td>
-                <td class="link">SCBB116688</td>
-                <td>0001067447</td>
-                <td class="buy">Mua</td>
-                <td>HPG</td>
-                <td>5,000</td>
-                <td class="col-new">24,600</td>
-                <td class="col-new col-rembal">4,500</td>
-                <td class="col-new">3,200</td>
-                <td class="col-new">24,580</td>
-                <td class="col-new">24,615</td>
-                <td class="col-new badge-id">LT20260615-01</td>
-                <td class="col-new col-loaigia">LO</td>
-                <td class="col-new col-kldd">0</td>
-                <td class="col-new col-klhuy">0</td>
-                <td class="col-new col-netvalue">123,000,000</td>
-                <td class="col-new col-filledvalue">78,656,000</td>
-                <td class="col-new col-fillpct">0.04%</td>
-              </tr>
-              <tr id="row-LT20260615-02" data-order-id="LT20260615-02"
-                  data-side="Bán" data-account="SCBFCA8060" data-subaccount="PPL"
-                  data-symbol="FPT" data-price="76,000" data-qty="3,500"
-                  data-fillqty="2,000" data-avgpx="75,950" data-vwap="76,080"
-                  data-instructions="Work the order, VWAP trong phiên" data-note="" data-marketvol="4,200,000">
-                <td><span class="status-dot"></span></td>
-                <td>BBG</td>
-                <td class="col-checkpx">1</td>
-                <td>15:40:29</td>
-                <td class="col-instructions"><span class="col-instructions-text" title="Work the order, VWAP trong phiên">Work the order, VWAP trong phiên</span></td>
-                <td><span class="col-status badge-part">Khớp 1 phần</span></td>
-                <td class="link">SCBFCA8060</td>
-                <td>PPL</td>
-                <td class="sell">Bán</td>
-                <td>FPT</td>
-                <td>3,500</td>
-                <td class="col-new">76,000</td>
-                <td class="col-new col-rembal">3,000</td>
-                <td class="col-new">2,000</td>
-                <td class="col-new">75,950</td>
-                <td class="col-new">76,080</td>
-                <td class="col-new badge-id">LT20260615-02</td>
-                <td class="col-new col-loaigia">LO</td>
-                <td class="col-new col-kldd">0</td>
-                <td class="col-new col-klhuy">0</td>
-                <td class="col-new col-netvalue">266,000,000</td>
-                <td class="col-new col-filledvalue">151,900,000</td>
-                <td class="col-new col-fillpct">0.05%</td>
-              </tr>
-              <tr id="row-LT20260616-01" data-order-id="LT20260616-01"
-                  data-side="Mua" data-account="SCBB116688" data-subaccount="0001067447"
-                  data-symbol="VIC" data-price="45,000" data-qty="2,000"
-                  data-fillqty="0" data-avgpx="0" data-vwap="45,050"
-                  data-instructions="" data-note="" data-marketvol="3,100,000">
-                <td><span class="status-dot"></span></td>
-                <td>BBG</td>
-                <td class="col-checkpx"></td>
-                <td>09:12:08</td>
-                <td class="col-instructions"></td>
-                <td><span class="col-status badge-pending">Chưa xác nhận đặt</span></td>
-                <td class="link">SCBB116688</td>
-                <td>0001067447</td>
-                <td class="buy">Mua</td>
-                <td>VIC</td>
-                <td>2,000</td>
-                <td class="col-new">45,000</td>
-                <td class="col-new col-rembal">2,000</td>
-                <td class="col-new">0</td>
-                <td class="col-new">0</td>
-                <td class="col-new">45,050</td>
-                <td class="col-new badge-id">LT20260616-01</td>
-                <td class="col-new col-loaigia">LO</td>
-                <td class="col-new col-kldd">0</td>
-                <td class="col-new col-klhuy">0</td>
-                <td class="col-new col-netvalue">90,000,000</td>
-                <td class="col-new col-filledvalue">0</td>
-                <td class="col-new col-fillpct">0.00%</td>
-              </tr>
-              <tr id="row-LT20260616-02" data-order-id="LT20260616-02"
-                  data-side="Bán" data-account="SCBFCA8060" data-subaccount="PPL"
-                  data-symbol="MWG" data-price="52,500" data-qty="800"
-                  data-fillqty="0" data-avgpx="0" data-vwap="52,480"
-                  data-instructions="Not held, tùy nghi thời điểm khớp" data-note="Theo dõi thanh khoản trước khi khớp" data-marketvol="2,600,000">
-                <td><span class="status-dot"></span></td>
-                <td>BBG</td>
-                <td class="col-checkpx">2</td>
-                <td>10:05:51</td>
-                <td class="col-instructions"><span class="col-instructions-text" title="Not held, tùy nghi thời điểm khớp">Not held, tùy nghi thời điểm khớp</span></td>
-                <td><span class="col-status badge-queued">Chờ xử lý</span></td>
-                <td class="link">SCBFCA8060</td>
-                <td>PPL</td>
-                <td class="sell">Bán</td>
-                <td>MWG</td>
-                <td>800</td>
-                <td class="col-new">52,500</td>
-                <td class="col-new col-rembal">800</td>
-                <td class="col-new">0</td>
-                <td class="col-new">0</td>
-                <td class="col-new">52,480</td>
-                <td class="col-new badge-id">LT20260616-02</td>
-                <td class="col-new col-loaigia">LO</td>
-                <td class="col-new col-kldd">0</td>
-                <td class="col-new col-klhuy">0</td>
-                <td class="col-new col-netvalue">42,000,000</td>
-                <td class="col-new col-filledvalue">0</td>
-                <td class="col-new col-fillpct">0.00%</td>
-              </tr>
-            </tbody>
+            <tbody id="bbg-tbody"><!-- Dựng động từ PARENT_ORDERS (data.js) qua renderParentOrders() --></tbody>
           </table>
         </div>
       </div>
@@ -676,13 +581,15 @@
               <span class="side-inactive" id="side-sell" onclick="setSide('Bán')">Bán</span>
             </div>
           </div>
-          <div class="field grow">
+          <div class="field grow" style="position:relative;">
             <label>Tài khoản</label>
-            <input id="ord-account" list="account-list" autocomplete="off"
+            <input id="ord-account" autocomplete="off"
                    placeholder="Nhập số tài khoản để tìm..."
-                   value="SCBB116688 - QUỸ ĐẦU TƯ TĂNG TRƯỞNG DÀI HẠN VIỆT NAM"
-                   oninput="onAccountInput(this.value)">
-            <datalist id="account-list"></datalist>
+                   value=""
+                   oninput="onAccountInput(this.value)"
+                   onfocus="onAccountInput(this.value)"
+                   onblur="setTimeout(hideAccountSuggestions, 150)">
+            <div class="account-suggest-list" id="account-suggest-list" hidden></div>
           </div>
           <div class="field grow">
             <label>Tiểu khoản</label>
@@ -690,32 +597,31 @@
           </div>
           <div class="field narrow">
             <label>Chứng khoán</label>
-            <input id="ord-symbol" value="HPG" oninput="validateOrderForm()">
+            <input id="ord-symbol" value="" oninput="validateOrderForm()">
           </div>
           <div class="field">
             <label>Loại lệnh</label>
-            <select id="ord-type"><option>Limit</option><option>Market</option></select>
+            <select id="ord-type" tabindex="1"><option>Limit</option><option>Market</option></select>
           </div>
           <div class="field narrow">
             <label>Giá</label>
-            <input id="ord-price" value="24,600" oninput="validateOrderForm()">
+            <input id="ord-price" value="" oninput="validateOrderForm()" tabindex="2">
           </div>
           <div class="field narrow">
             <label>Khối lượng</label>
-            <input id="ord-qty" value="" oninput="validateOrderForm()">
+            <input id="ord-qty" value="" oninput="validateOrderForm()" tabindex="3">
           </div>
           <div class="field wide">
             <label>Số hiệu lệnh tổng</label>
-            <input id="ord-orderid" value="LT20260615-01" readonly placeholder="(Tự động sinh khi đặt lệnh)">
+            <input id="ord-orderid" value="" readonly placeholder="(Tự động sinh khi đặt lệnh)">
           </div>
         </div>
         <div class="order-row2">
           <div class="field note-field">
             <input id="ord-note" placeholder="Ghi chú">
           </div>
-          <button class="btn-action buy" id="btn-place" onclick="placeOrder()">Đặt lệnh</button>
-          <button class="btn-action cancel" id="btn-cancel" onclick="cancelOrder()">Hủy lệnh</button>
-          <button class="btn-action ghost" id="btn-refresh" onclick="refreshForm()">🔄 Refresh</button>
+          <button class="btn-action buy" id="btn-place" onclick="placeOrder()" tabindex="4">Đặt lệnh</button>
+          <button class="btn-action ghost" id="btn-refresh" onclick="refreshForm()" tabindex="5">🔄 Refresh</button>
         </div>
       </div>
 
@@ -765,68 +671,7 @@
                 <th><input oninput="updateTableSearch(this,'child',12)" placeholder=""></th>
               </tr>
             </thead>
-            <tbody id="child-tbody">
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-01">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:48:26</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">1,000</td><td>23,800</td><td>0</td><td class="col-child-remain">1,000</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-02">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn disabled" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red disabled" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:47:51</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-cancelled">Đã hủy</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">500</td><td>23,900</td><td>0</td><td class="col-child-remain">500</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-03">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:46:21</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">400</td><td>24,600</td><td>0</td><td class="col-child-remain">400</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-04">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:46:06</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">300</td><td>25,500</td><td>0</td><td class="col-child-remain">300</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-05">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn disabled" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red disabled" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:45:37</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-cancelled">Đã hủy</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">200</td><td>24,000</td><td>0</td><td class="col-child-remain">200</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-06">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:36:59</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">100</td><td>25,000</td><td>0</td><td class="col-child-remain">100</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-09">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:50:12</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-part">Khớp 1 phần</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">600</td><td>24,650</td><td>350</td><td class="col-child-remain">250</td>
-              </tr>
-              <tr data-parent-id="LT20260615-01" data-child-id="CO20260615-10">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn disabled" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red disabled" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBB116688</td><td>0001067447</td><td>HPG</td><td>13:51:40</td>
-                <td class="buy">Mua thông thường</td><td><span class="col-child-status badge-matched">Khớp hết</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">700</td><td>24,580</td><td>700</td><td class="col-child-remain">0</td>
-              </tr>
-              <tr data-parent-id="LT20260615-02" data-child-id="CO20260615-07" style="display:none;">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBFCA8060</td><td>PPL</td><td>FPT</td><td>15:41:10</td>
-                <td class="sell">Bán thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">2,000</td><td>76,000</td><td>0</td><td class="col-child-remain">2,000</td>
-              </tr>
-              <tr data-parent-id="LT20260615-02" data-child-id="CO20260615-08" style="display:none;">
-                <td><span class="child-tick" onclick="toggleChildTickRow(this)"></span><span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest('tr'))">Sửa</span> <span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest('tr'))">Hủy</span></td>
-                <td class="link">SCBFCA8060</td><td>PPL</td><td>FPT</td><td>15:40:55</td>
-                <td class="sell">Bán thông thường</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>
-                <td class="col-child-qty">1,500</td><td>76,200</td><td>0</td><td class="col-child-remain">1,500</td>
-              </tr>
-            </tbody>
+            <tbody id="child-tbody"><!-- Dựng động từ CHILD_ORDERS (data.js) qua renderChildOrders() --></tbody>
           </table>
         </div>
       </div>
@@ -922,7 +767,7 @@
         <div><label>Mã CK</label><span id="detail-symbol"></span></div>
         <div><label>KL chặn</label><span id="detail-qty"></span></div>
         <div><label>KL khớp</label><span id="detail-fillqty"></span></div>
-        <div><label>KL còn lại</label><span id="detail-rembal"></span></div>
+        <div><label>KL chờ xử lý (REM PLACE)</label><span id="detail-rembal"></span></div>
         <div><label>Giá chặn</label><span id="detail-price"></span></div>
         <div><label>Giá khớp TB</label><span id="detail-avgpx"></span></div>
       </div>
@@ -941,7 +786,7 @@
       </div>
       <div class="table-wrap">
         <table class="table-detail-fills">
-          <thead><tr><th>Thời gian</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th>KL Còn lại</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Thời gian</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
           <tbody id="detail-fills-tbody"></tbody>
         </table>
       </div>
@@ -973,6 +818,29 @@
     </div>
   </div>
 
+  <!-- ===== Modal: Xác nhận đặt lệnh con (Mua/Bán) ===== -->
+  <div class="modal-overlay" id="modal-confirm-child-place" hidden>
+    <div class="modal-box">
+      <div class="modal-title-row">
+        <span class="modal-title">Xác nhận đặt lệnh con</span>
+        <span class="modal-close" onclick="closeModal('modal-confirm-child-place')">✕</span>
+      </div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Mã CK</label><span id="childplace-symbol"></span></div>
+        <div class="modal-kv-row"><label>Lệnh</label><span id="childplace-side"></span></div>
+        <div class="modal-kv-row"><label>Số lượng</label><span id="childplace-qty"></span></div>
+        <div class="modal-kv-row"><label>Giá đặt</label><span id="childplace-price"></span></div>
+        <div class="modal-kv-row"><label>Giá trị</label><span id="childplace-value"></span></div>
+        <div class="modal-kv-row"><label>Giá TB dự kiến</label><span id="childplace-avgpx"></span></div>
+      </div>
+      <div class="modal-verified">✔ Đã xác thực</div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeModal('modal-confirm-child-place')">Quay lại</button>
+        <button class="modal-btn confirm" onclick="confirmChildPlace()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Modal: Xác nhận hủy hàng loạt lệnh con ===== -->
   <div class="modal-overlay" id="modal-bulk-cancel-child" hidden>
     <div class="modal-box">
@@ -992,28 +860,6 @@
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-bulk-cancel-child')">Quay lại</button>
         <button class="modal-btn confirm" onclick="confirmChildBulkCancel()">Xác nhận</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== Modal: Xác nhận hủy lệnh tổng ===== -->
-  <div class="modal-overlay" id="modal-cancel-order" hidden>
-    <div class="modal-box">
-      <div class="modal-title-row">
-        <span class="modal-title title-danger">Xác nhận hủy lệnh tổng</span>
-        <span class="modal-close" onclick="closeModal('modal-cancel-order')">✕</span>
-      </div>
-      <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Lệnh Hủy</label><span id="cancelorder-summary"></span></div>
-        <div class="modal-kv-row"><label>Mã CK</label><span id="cancelorder-symbol"></span></div>
-        <div class="modal-kv-row"><label>Tài khoản</label><span id="cancelorder-account"></span></div>
-        <div class="modal-kv-row"><label>Số hiệu lệnh</label><span id="cancelorder-orderid"></span></div>
-      </div>
-      <div class="modal-cancel-warn-text">Lệnh đã hủy không thể hoàn tác, bạn có chắc chắn muốn hủy lệnh tổng và toàn bộ các chỉ thị lệnh con còn hiệu lực?</div>
-      <div class="modal-verified">✔ Đã xác thực</div>
-      <div class="modal-actions">
-        <button class="modal-btn cancel" onclick="closeModal('modal-cancel-order')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmCancelOrder()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -1042,34 +888,79 @@
     </div>
   </div>
 
+  <!-- ===== Modal: Xác nhận sửa lệnh con ===== -->
+  <div class="modal-overlay" id="modal-confirm-edit-child" hidden>
+    <div class="modal-box">
+      <div class="modal-title-row">
+        <span class="modal-title">Xác nhận sửa lệnh con</span>
+        <span class="modal-close" onclick="closeModal('modal-confirm-edit-child')">✕</span>
+      </div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Mã CK</label><span id="editchild-symbol"></span></div>
+        <div class="modal-kv-row"><label>Lệnh</label><span id="editchild-side"></span></div>
+        <div class="modal-kv-row"><label>Giá trước sửa</label><span id="editchild-price-before"></span></div>
+        <div class="modal-kv-row"><label>Giá sau sửa</label><span id="editchild-price-after"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng trước sửa</label><span id="editchild-qty-before"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng sau sửa</label><span id="editchild-qty-after"></span></div>
+      </div>
+      <div class="modal-verified">✔ Đã xác thực</div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeModal('modal-confirm-edit-child')">Quay lại</button>
+        <button class="modal-btn confirm" onclick="confirmSaveChildOrderEdit()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: ACK xác nhận Sửa lệnh tổng (lệnh đang "Chờ xác nhận sửa") ===== -->
+  <div class="modal-overlay" id="modal-ack-edit" hidden>
+    <div class="modal-box">
+      <div class="modal-title-row">
+        <span class="modal-title">Xác nhận sửa lệnh tổng</span>
+        <span class="modal-close" onclick="closeModal('modal-ack-edit')">✕</span>
+      </div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Lệnh</label><span id="ackedit-summary"></span></div>
+        <div class="modal-kv-row"><label>Mã CK</label><span id="ackedit-symbol"></span></div>
+        <div class="modal-kv-row"><label>Giá</label><span id="ackedit-price"></span></div>
+        <div class="modal-kv-row"><label>Số hiệu lệnh</label><span id="ackedit-orderid"></span></div>
+      </div>
+      <div class="modal-verified">✔ Đã xác thực</div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeModal('modal-ack-edit')">Quay lại</button>
+        <button class="modal-btn confirm" onclick="confirmAckEdit()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
   <script>
-    // ===== Lookup hiển thị đầy đủ Tài khoản / Tiểu khoản (demo data) =====
-    var ACCOUNTS = {
-      'SCBB116688': 'SCBB116688 - QUỸ ĐẦU TƯ TĂNG TRƯỞNG DÀI HẠN VIỆT NAM',
-      'SCBFCA8060': 'SCBFCA8060 - QUỸ ĐẦU TƯ CỔ PHIẾU TĂNG TRƯỞNG'
-    };
-    var SUBACCOUNTS = {
-      '0001067447': 'Thường TP 0.02_CP 0.12 - 0001067447',
-      'PPL': 'Tiểu khoản PPL - PPL01'
-    };
+    // ===== Lookup hiển thị đầy đủ Tài khoản / Tiểu khoản — dựng từ bảng CUSTOMERS (data.js) =====
+    var ACCOUNTS = {};
+    var SUBACCOUNTS = {};
     // Tiểu khoản thuộc về tài khoản nào — phục vụ dropdown Tiểu khoản (mục theo Tài khoản đang chọn)
-    var ACCOUNT_SUBACCOUNTS = {
-      'SCBB116688': ['0001067447'],
-      'SCBFCA8060': ['PPL']
-    };
+    var ACCOUNT_SUBACCOUNTS = {};
+    CUSTOMERS.forEach(function (c) {
+      ACCOUNTS[c.accountCode] = c.accountCode + ' - ' + c.accountName;
+      ACCOUNT_SUBACCOUNTS[c.accountCode] = c.subaccounts.map(function (s) { return s.code; });
+      c.subaccounts.forEach(function (s) { SUBACCOUNTS[s.code] = s.name; });
+    });
     var STATUS_BADGE = {
       'Đã gửi': 'badge-sent',
       'Chờ xử lý': 'badge-queued',
-      'Chưa xác nhận đặt': 'badge-pending',
+      'Chờ xác nhận đặt': 'badge-pending',
+      'Chờ xác nhận sửa': 'badge-awaiting',
+      'Chờ xác nhận hủy': 'badge-awaiting',
       'Đã hủy': 'badge-cancelled',
       'Từ chối': 'badge-rejected',
       'Đã sửa': 'badge-edited',
       'Khớp hết': 'badge-matched',
-      'Khớp 1 phần': 'badge-part'
+      'Khớp 1 phần': 'badge-part',
+      'Chờ xác nhận': 'badge-awaiting'
     };
 
     var selectedOrderId = null; // Mặc định ban đầu: chưa chọn lệnh tổng nào (9.1: chỉ 1 dòng được chọn)
     var editingChildRow = null;    // dòng lệnh con đang được "Sửa" (mục 5)
+    var editingChildOriginal = null; // {price, qty} gốc của dòng đang sửa — để so sánh phát hiện thay đổi
     var cancellingChildRow = null; // dòng lệnh con đang chờ xác nhận "Hủy" (mục 5)
     var childBulkCancelMode = false; // đang ở chế độ tick chọn để hủy hàng loạt lệnh con
     var pendingBulkCancelRows = [];  // các dòng lệnh con đã tick, chờ xác nhận hủy hàng loạt
@@ -1119,6 +1010,8 @@
 
     // ===== 6 & 9: Chọn / Bỏ chọn dòng lệnh tổng =====
     function onRowClick(tr) {
+      var status = tr.querySelector('.col-status').textContent.trim();
+      if (status === 'Đã hủy') return; // Lệnh tổng đã hủy không cho phép check/chọn
       var orderId = tr.dataset.orderId;
       if (selectedOrderId === orderId) {
         clearSelection();
@@ -1129,6 +1022,7 @@
 
     function applySelection(orderId) {
       editingChildRow = null;
+      editingChildOriginal = null;
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1145,22 +1039,28 @@
       var tr = document.getElementById('row-' + orderId);
       var status = tr.querySelector('.col-status').textContent.trim();
 
-      // Status = Đã gửi / Chờ xử lý / Chưa xác nhận đặt đều fill dữ liệu vào khung "Đặt lệnh tổng"
-      if (status === 'Đã gửi' || status === 'Chờ xử lý' || status === 'Chưa xác nhận đặt') {
-        loadOrderToForm(tr);
+      // Check 1 dòng lệnh tổng → khu vực đặt lệnh con luôn fill thông tin lệnh tổng (Mua/Bán, Tài khoản,
+      // Tiểu khoản, Chứng khoán) dù kích hoạt hay không. Kích hoạt (Chờ xử lý/Đã gửi/Khớp 1 phần): nhóm
+      // Loại lệnh/Giá/Khối lượng cùng sửa được (trừ khi REM BAL=0). Không kích hoạt: cả nhóm khóa luôn.
+      var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
+      loadOrderToForm(tr);
+      setChildEntryFieldsLocked(true, !isActive);
+      if (isActive) {
+        refreshQtyRemBalHint(tr);
       } else {
-        resetForm();
+        document.getElementById('ord-qty').title = '';
       }
-      document.getElementById('btn-cancel').hidden = false;
       updateToolbar(status);
 
       filterChildOrders(orderId);
       exitChildBulkCancelMode(); // đổi lệnh tổng đang chọn → reset chế độ hủy hàng loạt của lệnh cũ
       document.getElementById('btn-child-bulk-cancel').classList.remove('disabled');
+      updatePanelBorder();
     }
 
     function clearSelection() {
       editingChildRow = null;
+      editingChildOriginal = null;
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1174,31 +1074,35 @@
       document.getElementById('btn-toolbar-place').classList.remove('toggled-active');
 
       resetForm();
-      document.getElementById('btn-cancel').hidden = true;
       updateToolbar(null);
 
       filterChildOrders(null);
       exitChildBulkCancelMode();
       document.getElementById('btn-child-bulk-cancel').classList.add('disabled');
+      updatePanelBorder();
     }
 
     // ===== Toolbar theo Status của dòng đang chọn — disable nút không áp dụng =====
     function updateToolbar(status) {
-      // ACK/REJECT chỉ active khi lệnh đang chọn có trạng thái "Chưa xác nhận đặt"
+      // ACK dùng chung để xác nhận Đặt lệnh / Sửa lệnh / Hủy lệnh — active khi lệnh đang chọn
+      // ở 1 trong 3 trạng thái chờ xác nhận. REJECT chỉ áp dụng cho việc từ chối đặt lệnh mới.
       var enabled = {
         ack: false, reject: false, edit: true, fixnet: true, done4day: true, detail: true, refresh: true
       };
-      if (status === 'Chưa xác nhận đặt') {
+      if (status === 'Chờ xác nhận đặt') {
         enabled = { ack: true, reject: true, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
+      } else if (status === 'Chờ xác nhận sửa' || status === 'Chờ xác nhận hủy') {
+        // Yêu cầu sửa/hủy đã đang chờ xác nhận qua ACK — nút "Hủy từ Fix Net" bấm trực tiếp không áp dụng nữa
+        enabled = { ack: true, reject: false, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
       } else if (status === 'Chờ xử lý') {
         enabled = { ack: false, reject: false, edit: true, fixnet: true, done4day: true, detail: true, refresh: true };
       }
+      // "Sửa lệnh tổng" enable theo đúng luật của "Hủy từ Fix Net"
+      enabled.edit = enabled.fixnet;
       // ACK, REJECT, Sửa lệnh tổng, Huỷ từ Fix Net, Detail chỉ active khi có 1 dòng lệnh tổng đang được chọn
       document.getElementById('btn-ack').classList.toggle('disabled', !enabled.ack || !selectedOrderId);
       document.getElementById('btn-reject').classList.toggle('disabled', !enabled.reject || !selectedOrderId);
-      // "Đặt lệnh tổng" chỉ bấm được khi CHƯA chọn dòng nào (để bắt đầu nhập lệnh tổng mới);
-      // đã chọn 1 dòng thì khung bên dưới tự chuyển "Đặt lệnh con" và mở khóa sẵn, không cần nút này nữa
-      document.getElementById('btn-toolbar-place').classList.toggle('disabled', !!selectedOrderId);
+      // "Đặt lệnh tổng" luôn bấm được — chỉ có 2 trạng thái: sẵn sàng / đang đặt lệnh tổng (xem startNewOrderEntry)
       document.getElementById('btn-toolbar-edit').classList.toggle('disabled', !enabled.edit || !selectedOrderId);
       document.getElementById('btn-toolbar-fixnet').classList.toggle('disabled', !enabled.fixnet || !selectedOrderId);
       document.getElementById('btn-toolbar-done4day').classList.toggle('disabled', !enabled.done4day);
@@ -1270,7 +1174,7 @@
         if (!tick) return;
         if (tr.dataset.parentId !== selectedOrderId) { tick.classList.remove('checked'); return; }
         var status = tr.querySelector('.col-child-status').textContent.trim();
-        tick.classList.toggle('checked', status !== 'Đã hủy' && status !== 'Khớp hết');
+        tick.classList.toggle('checked', status !== 'Đã hủy' && status !== 'Khớp hết' && status !== 'Chờ xác nhận');
       });
       updateChildBulkCancelButtonLabel();
     }
@@ -1320,6 +1224,7 @@
         var statusEl = tr.querySelector('.col-child-status');
         statusEl.textContent = 'Đã hủy';
         statusEl.className = 'col-child-status badge-cancelled';
+        tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
         disableChildRowActions(tr);
       });
       if (selectedOrderId) updateOrderAggregates(selectedOrderId);
@@ -1332,8 +1237,10 @@
       document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]')
         .forEach(function (tr) {
           var el = tr.querySelector('.col-child-status');
+          if (el.textContent.trim() === 'Đã hủy') return; // đã hủy sẵn rồi, không đụng lại KL còn lại
           el.textContent = 'Đã hủy';
           el.className = 'col-child-status badge-cancelled';
+          tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
           disableChildRowActions(tr);
         });
       updateOrderAggregates(orderId);
@@ -1343,12 +1250,38 @@
     function closeModal(id) { document.getElementById(id).hidden = true; }
     function getOtp(inputId) { document.getElementById(inputId).value = '123456'; }
 
-    // ===== 1.1: ACK → Status = Chờ xử lý =====
+    // ===== 1.1: ACK — dùng chung để xác nhận Đặt lệnh / Sửa lệnh / Hủy lệnh, tùy trạng thái đang chọn =====
     function openAckModal() {
       if (isToolbarBtnDisabled('btn-ack')) return;
-      if (!requireSelectedRow()) return;
+      var tr = requireSelectedRow();
+      if (!tr) return;
+      var status = tr.querySelector('.col-status').textContent.trim();
+      if (status === 'Chờ xác nhận hủy') {
+        openFixnetModalCore(tr);
+        return;
+      }
+      if (status === 'Chờ xác nhận sửa') {
+        openAckEditModal(tr);
+        return;
+      }
       document.querySelector('input[name="ackOption"][value="1"]').checked = true;
       openModal('modal-ack');
+    }
+
+    // ACK khi lệnh tổng đang "Chờ xác nhận sửa" — xác nhận xong quay về "Đã gửi"
+    function openAckEditModal(tr) {
+      document.getElementById('ackedit-summary').textContent = tr.dataset.side + ' ' + tr.dataset.symbol + ' ' + tr.dataset.qty;
+      document.getElementById('ackedit-symbol').textContent = tr.dataset.symbol;
+      document.getElementById('ackedit-price').textContent = tr.dataset.price;
+      document.getElementById('ackedit-orderid').textContent = tr.dataset.orderId;
+      openModal('modal-ack-edit');
+    }
+
+    function confirmAckEdit() {
+      var tr = requireSelectedRow();
+      if (!tr) { closeModal('modal-ack-edit'); return; }
+      setOrderStatus(tr, 'Đã gửi');
+      closeModal('modal-ack-edit');
     }
 
     function confirmAck() {
@@ -1382,10 +1315,16 @@
       if (isToolbarBtnDisabled('btn-toolbar-fixnet')) return;
       var tr = requireSelectedRow();
       if (!tr) return;
+      openFixnetModalCore(tr);
+    }
+
+    // Phần lõi mở modal Fix Net, dùng chung cho nút toolbar và ACK (khi "Chờ xác nhận hủy") —
+    // không kiểm tra trạng thái disabled của nút toolbar vì ACK có điều kiện enable riêng.
+    function openFixnetModalCore(tr) {
       document.getElementById('fixnet-order-summary').textContent =
         tr.dataset.symbol + ' - ' + tr.dataset.side + ' - ' + tr.dataset.qty;
       document.getElementById('fixnet-price').textContent = tr.dataset.price;
-      document.getElementById('fixnet-order-id').textContent = selectedOrderId;
+      document.getElementById('fixnet-order-id').textContent = tr.dataset.orderId;
       openModal('modal-fixnet');
     }
 
@@ -1397,12 +1336,30 @@
       closeModal('modal-fixnet');
     }
 
-    // ===== Tài khoản: gợi ý (datalist) tìm theo số tài khoản; Tiểu khoản: dropdown theo Tài khoản đang chọn =====
-    function buildAccountDatalist() {
-      var list = document.getElementById('account-list');
-      list.innerHTML = Object.keys(ACCOUNTS).map(function (code) {
-        return '<option value="' + ACCOUNTS[code] + '">';
+    // ===== Tài khoản: gợi ý tùy chỉnh tìm theo Số tài khoản/Tên tài khoản; Tiểu khoản: dropdown theo Tài khoản đang chọn =====
+    function renderAccountSuggestions(value) {
+      var box = document.getElementById('account-suggest-list');
+      var term = value.trim().toLowerCase();
+      var matches = CUSTOMERS.filter(function (c) {
+        return !term || c.accountCode.toLowerCase().indexOf(term) !== -1 || c.accountName.toLowerCase().indexOf(term) !== -1;
+      });
+      if (!matches.length) { box.hidden = true; box.innerHTML = ''; return; }
+      box.innerHTML = matches.map(function (c) {
+        return '<div class="account-suggest-item" onmousedown="selectAccountSuggestion(\'' + c.accountCode + '\')">' +
+          '<span class="code">' + c.accountCode + '</span>' + c.accountName + '</div>';
       }).join('');
+      box.hidden = false;
+    }
+
+    function selectAccountSuggestion(code) {
+      document.getElementById('ord-account').value = ACCOUNTS[code];
+      hideAccountSuggestions();
+      onAccountInput(ACCOUNTS[code]);
+      document.getElementById('ord-account').focus();
+    }
+
+    function hideAccountSuggestions() {
+      document.getElementById('account-suggest-list').hidden = true;
     }
 
     function populateSubaccountOptions(accountCode, selectedCode) {
@@ -1420,20 +1377,36 @@
       select.value = (selectedCode && codes.indexOf(selectedCode) !== -1) ? selectedCode : codes[0];
     }
 
-    // Gõ/chọn Tài khoản (gợi ý từ datalist) → nạp lại Tiểu khoản tương ứng
+    // Gõ/chọn Tài khoản → lọc lại danh sách gợi ý + nạp lại Tiểu khoản tương ứng
     function onAccountInput(value) {
       var code = value.split(' - ')[0].trim();
       populateSubaccountOptions(ACCOUNTS[code] ? code : null);
       validateOrderForm();
+      renderAccountSuggestions(value);
     }
 
     // Kiểm tra các trường Đặt lệnh con hợp lệ (đủ dữ liệu + KL đặt <= Qty lệnh tổng) để bật/tắt nút "Đặt lệnh"
     function validateOrderForm() {
       var btn = document.getElementById('btn-place');
-      if (editingChildRow) return; // đang ở chế độ Sửa lệnh con — không áp dụng luật này
+
+      // Đang sửa 1 lệnh con: chỉ enable "Đặt lệnh" khi Giá/Khối lượng hợp lệ VÀ có ít nhất 1 trong 2 trường bị đổi
+      if (editingChildRow) {
+        var editPrice = document.getElementById('ord-price').value.trim();
+        var editQty = document.getElementById('ord-qty').value.trim();
+        var editValid = !!(editPrice && editQty && parseQty(editQty) > 0);
+        if (editValid) {
+          var editParentTr = document.getElementById('row-' + editingChildRow.dataset.parentId);
+          if (editParentTr && parseQty(editQty) > parseQty(editParentTr.dataset.qty)) editValid = false;
+        }
+        var changed = !!editingChildOriginal && (editPrice !== editingChildOriginal.price || editQty !== editingChildOriginal.qty);
+        btn.disabled = !editValid || !changed;
+        return;
+      }
 
       var symbolEl = document.getElementById('ord-symbol');
-      if (symbolEl.disabled) { btn.disabled = true; return; } // khung đang khóa (inactive)
+      // Khung đang khóa hoàn toàn (chưa chọn lệnh tổng nào, chưa bấm "Đặt lệnh tổng") — phân biệt với lúc
+      // đã check 1 lệnh tổng (Chứng khoán/Giá... bị khóa nhưng vẫn có selectedOrderId để đặt lệnh con)
+      if (!selectedOrderId && symbolEl.disabled) { btn.disabled = true; return; }
 
       var account = document.getElementById('ord-account').value.trim();
       var subaccountEl = document.getElementById('ord-subaccount');
@@ -1442,7 +1415,7 @@
       var price = document.getElementById('ord-price').value.trim();
       var qty = document.getElementById('ord-qty').value.trim();
 
-      var fieldsFilled = !!(account && subaccount && !subaccountEl.disabled && symbol && price && qty);
+      var fieldsFilled = !!(account && subaccount && symbol && price && qty);
       var qtyValid = fieldsFilled && parseQty(qty) > 0;
 
       // Đang đặt lệnh con cho 1 lệnh tổng đang chọn → KL đặt phải <= Qty của lệnh tổng, và lệnh tổng chưa "Đã gửi"... (Đã gửi vẫn cho đặt lệnh con, chỉ chặn khi cần)
@@ -1457,13 +1430,41 @@
     // ===== 6.2: Đồng bộ dữ liệu dòng được chọn sang khung "Đặt lệnh tổng" =====
     function loadOrderToForm(tr) {
       setSide(tr.dataset.side);
-      document.getElementById('ord-account').value = ACCOUNTS[tr.dataset.account] || tr.dataset.account;
+      document.getElementById('ord-account').value = tr.dataset.account; // ô nhập tài khoản chỉ hiển thị số tài khoản
       populateSubaccountOptions(tr.dataset.account, tr.dataset.subaccount);
       document.getElementById('ord-symbol').value = tr.dataset.symbol;
+      document.getElementById('ord-type').value = (tr.dataset.ordertype === 'LO') ? 'Limit' : 'Market';
       document.getElementById('ord-price').value = tr.dataset.price;
       document.getElementById('ord-qty').value = ''; // Khối lượng không tự fill — user tự nhập khối lượng đặt lệnh con
       document.getElementById('ord-orderid').value = tr.dataset.orderId;
       validateOrderForm();
+    }
+
+    // Check 1 dòng lệnh tổng: Mua/Bán, Tài khoản, Tiểu khoản, Chứng khoán tự fill theo lệnh tổng nhưng khóa
+    // lại hẳn (y hệt disable, con trỏ "không được sửa") — luôn khóa bất kể kích hoạt hay không.
+    // Loại lệnh/Giá/Khối lượng luôn cùng enable hoặc cùng disable với nhau (readOnlyAll = true khi không
+    // kích hoạt, hoặc khi REM BAL = 0 — xem refreshQtyRemBalHint).
+    function setChildEntryFieldsLocked(locked, readOnlyAll) {
+      ['ord-account', 'ord-subaccount', 'ord-symbol'].forEach(function (id) {
+        document.getElementById(id).disabled = locked;
+      });
+      document.getElementById('side-toggle').classList.toggle('disabled-toggle', locked);
+      var groupLocked = locked && !!readOnlyAll;
+      ['ord-type', 'ord-price', 'ord-qty'].forEach(function (id) {
+        document.getElementById(id).disabled = groupLocked;
+      });
+    }
+
+    // REM BAL = 0 → không còn gì để đặt thêm lệnh con: khóa cả nhóm Loại lệnh/Giá/Khối lượng + hiện
+    // tooltip khi hover vào Khối lượng (Loại lệnh/Giá/Khối lượng luôn cùng enable hoặc cùng disable).
+    function refreshQtyRemBalHint(tr) {
+      var qtyEl = document.getElementById('ord-qty');
+      var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
+      var lockGroup = remBalNow <= 0;
+      ['ord-type', 'ord-price', 'ord-qty'].forEach(function (id) {
+        document.getElementById(id).disabled = lockGroup;
+      });
+      qtyEl.title = lockGroup ? 'REM BAL = 0 (không thể đặt thêm lệnh con)' : '';
     }
 
     // ===== 10: Khi không có dòng được chọn → reset, cho phép nhập mới =====
@@ -1474,6 +1475,7 @@
       document.getElementById('ord-symbol').value = '';
       document.getElementById('ord-price').value = '';
       document.getElementById('ord-qty').value = '';
+      document.getElementById('ord-qty').title = '';
       document.getElementById('ord-orderid').value = '';
       document.getElementById('ord-note').value = '';
       validateOrderForm();
@@ -1492,6 +1494,7 @@
       box.dataset.side = side;
       buyEl.className = (side === 'Mua') ? 'side-active-buy' : 'side-inactive';
       sellEl.className = (side === 'Bán') ? 'side-active-sell' : 'side-inactive';
+      updatePanelBorder();
     }
 
     // ===== 8: Đồng bộ / lọc "Sổ lệnh con trong ngày" theo lệnh tổng đang chọn + search theo cột (mục 2) =====
@@ -1649,7 +1652,7 @@
     // ===== 5: Chức năng tạo lệnh tổng (hoặc sinh lệnh con nếu đang chọn 1 lệnh tổng Chờ xử lý / Đã gửi) =====
     function placeOrder() {
       if (editingChildRow) {
-        saveChildOrderEdit();
+        openEditChildConfirm();
         return;
       }
       var side = document.getElementById('side-toggle').dataset.side;
@@ -1671,8 +1674,8 @@
       if (selectedOrderId) {
         var selectedTr = document.getElementById('row-' + selectedOrderId);
         var parentStatus = selectedTr.querySelector('.col-status').textContent.trim();
-        if (parentStatus === 'Chờ xử lý' || parentStatus === 'Đã gửi') {
-          createChildOrder(selectedTr, side, accountCode, subaccountCode, symbol, price, qty);
+        if (parentStatus === 'Chờ xử lý' || parentStatus === 'Đã gửi' || parentStatus === 'Khớp 1 phần') {
+          openChildPlaceConfirm(selectedTr, side, accountCode, subaccountCode, symbol, price, qty);
           return;
         }
       }
@@ -1731,29 +1734,34 @@
       tr.dataset.instructions = '';
       tr.dataset.note = note;
       tr.dataset.marketvol = '1,000,000'; // KL giao dịch toàn thị trường (demo) — dùng để tính % Khớp
+      tr.dataset.ordertype = 'LO';
+      tr.dataset.route = 'Broker';
 
       var sideClass = side === 'Mua' ? 'buy' : 'sell';
       var netValue = formatQty(parseQty(qty) * parseQty(price));
       tr.innerHTML =
         '<td><span class="status-dot"></span></td>' +
-        '<td>Broker</td><td class="col-checkpx"></td><td>' + time + '</td>' +
-        '<td class="col-instructions"></td>' +
-        '<td><span class="col-status badge-pending">Chưa xác nhận đặt</span></td>' +
+        '<td>Broker</td><td class="col-checkpx"></td>' +
         '<td class="link">' + accountCode + '</td><td>' + subaccountCode + '</td>' +
+        '<td class="col-instructions"></td>' +
+        '<td><span class="col-status badge-pending">Chờ xác nhận đặt</span></td>' +
         '<td class="' + sideClass + '">' + side + '</td>' +
         '<td>' + symbol + '</td><td>' + qty + '</td>' +
         '<td class="col-new">' + price + '</td>' +
-        '<td class="col-new col-rembal">' + qty + '</td>' +
-        '<td class="col-new">0</td>' +
-        '<td class="col-new">0</td>' +
+        '<td class="col-new col-fillqty">0</td>' +
+        '<td class="col-new col-avgpx"></td>' +
         '<td class="col-new">' + price + '</td>' +
-        '<td class="col-new badge-id">' + orderId + '</td>' +
-        '<td class="col-new col-loaigia">LO</td>' +
-        '<td class="col-new col-kldd">0</td>' +
-        '<td class="col-new col-klhuy">0</td>' +
+        '<td class="col-new col-completepct">0.00%</td>' +
+        '<td class="col-new col-fillpct">0.00%</td>' +
+        '<td class="col-new col-rembal">' + qty + '</td>' +
+        '<td class="col-new col-remplace">0</td>' +
         '<td class="col-new col-netvalue">' + netValue + '</td>' +
         '<td class="col-new col-filledvalue">0</td>' +
-        '<td class="col-new col-fillpct">0.00%</td>';
+        '<td class="col-new badge-id">' + orderId + '</td>' +
+        '<td>' + time + '</td>' +
+        '<td class="col-new col-klhuy">0</td>' +
+        '<td class="col-new"></td>' +
+        '<td class="col-new">' + note + '</td>';
 
       document.getElementById('bbg-tbody').appendChild(tr);
       bindRowClick(tr);
@@ -1763,6 +1771,61 @@
     }
 
     // ===== 1: Đặt lệnh khi đang chọn 1 lệnh tổng Chờ xử lý / Đã gửi → sinh 1 lệnh con vào "Sổ lệnh con trong ngày" =====
+    var pendingChildOrder = null; // dữ liệu lệnh con đang chờ xác nhận ở modal-confirm-child-place
+
+    // Giá TB dự kiến = bình quân gia quyền giữa các lệnh con còn hiệu lực (đã khớp + treo chờ khớp)
+    // của lệnh tổng và lệnh con mới đang xác nhận (chưa tạo thật)
+    function calcExpectedAvgPrice(parentTr, newQty, newPrice) {
+      var sumValue = newQty * newPrice;
+      var sumQty = newQty;
+      document.querySelectorAll('#child-tbody tr[data-parent-id="' + parentTr.dataset.orderId + '"]').forEach(function (r) {
+        if (r.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') return;
+        var qty = parseQty(r.querySelector('.col-child-qty').textContent);
+        var price = parseQty(r.querySelector('.col-child-price').textContent);
+        sumValue += qty * price;
+        sumQty += qty;
+      });
+      return sumQty > 0 ? sumValue / sumQty : 0;
+    }
+
+    function openChildPlaceConfirm(parentTr, side, accountCode, subaccountCode, symbol, price, qty) {
+      var childQty = parseQty(qty);
+      var parentQty = parseQty(parentTr.dataset.qty);
+      if (childQty > parentQty) {
+        alert('Khối lượng đặt lệnh con (' + qty + ') phải nhỏ hơn hoặc bằng Qty (' + parentTr.dataset.qty + ') của lệnh tổng.');
+        return;
+      }
+      var remBalEl = parentTr.querySelector('.col-rembal');
+      var remBal = remBalEl ? parseQty(remBalEl.textContent) : 0;
+      if (childQty > remBal) {
+        alert('Khối lượng đặt lệnh con (' + qty + ') vượt quá REM BAL (' + formatQty(remBal) + ') của lệnh tổng.');
+        return;
+      }
+      pendingChildOrder = { parentTr: parentTr, side: side, accountCode: accountCode, subaccountCode: subaccountCode, symbol: symbol, price: price, qty: qty };
+
+      var childPrice = parseQty(price);
+      var value = childQty * childPrice;
+      var avgPx = calcExpectedAvgPrice(parentTr, childQty, childPrice);
+
+      var sideEl = document.getElementById('childplace-side');
+      sideEl.textContent = side === 'Mua' ? 'MUA' : 'BÁN';
+      sideEl.className = side === 'Mua' ? 'buy' : 'sell';
+      document.getElementById('childplace-symbol').textContent = symbol;
+      document.getElementById('childplace-qty').textContent = formatQty(childQty);
+      document.getElementById('childplace-price').textContent = formatQty(childPrice);
+      document.getElementById('childplace-value').textContent = formatQty(value);
+      document.getElementById('childplace-avgpx').textContent = formatQty(Math.round(avgPx));
+      openModal('modal-confirm-child-place');
+    }
+
+    function confirmChildPlace() {
+      if (!pendingChildOrder) { closeModal('modal-confirm-child-place'); return; }
+      var d = pendingChildOrder;
+      pendingChildOrder = null;
+      closeModal('modal-confirm-child-place');
+      createChildOrder(d.parentTr, d.side, d.accountCode, d.subaccountCode, d.symbol, d.price, d.qty);
+    }
+
     function createChildOrder(parentTr, side, accountCode, subaccountCode, symbol, price, qty) {
       var childQty = parseQty(qty);
       var parentQty = parseQty(parentTr.dataset.qty);
@@ -1785,18 +1848,13 @@
         '<span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
         '<span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +
         '<td class="link">' + accountCode + '</td><td class="col-child-subaccount">' + subaccountCode + '</td>' +
-        '<td class="col-child-symbol">' + symbol + '</td><td>' + time + '</td>' +
+        '<td class="col-child-symbol">' + symbol + '</td><td class="col-child-time">' + time + '</td>' +
         '<td class="' + sideClass + '">' + sideLabel + '</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>' +
-        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + price + '</td><td>0</td><td class="col-child-remain">' + qty + '</td>';
+        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + price + '</td><td class="col-child-matchqty">0</td><td class="col-child-remain">' + qty + '</td>';
 
       document.getElementById('child-tbody').appendChild(tr);
       filterChildOrders(selectedOrderId);
-      updateOrderAggregates(parentTr.dataset.orderId);
-
-      // REM BAL = Qty - KL đã đặt (cộng dồn) — chỉ cập nhật khi vừa đặt thêm lệnh con
-      var kldd = parseQty(parentTr.querySelector('.col-kldd').textContent);
-      var rembalTd = parentTr.querySelector('.col-rembal');
-      if (rembalTd) rembalTd.textContent = formatQty(parseQty(parentTr.dataset.qty) - kldd);
+      updateOrderAggregates(parentTr.dataset.orderId); // đã tự tính lại REM BAL/REM PLACE/Fill Qty ở đây
 
       // Kiểm tra khớp lệnh: chỉ áp dụng cho lệnh Mua
       if (side === 'Mua') {
@@ -1844,17 +1902,65 @@
       return n.toLocaleString('en-US');
     }
 
+    // KL hủy / REM PLACE / Fill Qty / REM BAL (và các trường phái sinh) đều tổng hợp trực tiếp
+    // từ các lệnh con còn hiệu lực (bỏ qua "Đã hủy") — luôn khớp số với Sổ lệnh con trong ngày.
     function updateOrderAggregates(orderId) {
       var tr = document.getElementById('row-' + orderId);
       if (!tr) return;
-      var placed = 0, cancelled = 0;
+      var cancelled = 0, matched = 0, remainSum = 0;
       document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]').forEach(function (r) {
         var qty = parseQty(r.querySelector('.col-child-qty').textContent);
-        placed += qty;
-        if (r.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') cancelled += qty;
+        var matchEl = r.querySelector('.col-child-matchqty');
+        var matchQty = matchEl ? parseQty(matchEl.textContent) : 0;
+        // Lệnh con đã hủy vẫn cộng phần đã khớp (trước khi hủy) vào lệnh tổng — hủy chỉ hủy phần chưa khớp.
+        matched += matchQty;
+        if (r.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') {
+          cancelled += qty;
+        } else {
+          remainSum += (qty - matchQty); // KL còn lại của từng lệnh con còn hiệu lực
+        }
       });
-      tr.querySelector('.col-kldd').textContent = formatQty(placed);
       tr.querySelector('.col-klhuy').textContent = formatQty(cancelled);
+
+      var qtyTotal = parseQty(tr.dataset.qty);
+      var remplaceTd = tr.querySelector('.col-remplace');
+      // REM PLACE = tổng khối lượng còn lại (chưa khớp) của các lệnh con còn hiệu lực
+      if (remplaceTd) remplaceTd.textContent = formatQty(remainSum);
+
+      tr.dataset.fillqty = formatQty(matched);
+      var fillqtyTd = tr.querySelector('.col-fillqty');
+      if (fillqtyTd) fillqtyTd.textContent = formatQty(matched);
+
+      // REM BAL = Qty - Fill Qty - REM PLACE
+      var rembalTd = tr.querySelector('.col-rembal');
+      if (rembalTd) rembalTd.textContent = formatQty(qtyTotal - matched - remainSum);
+
+      var completeTd = tr.querySelector('.col-completepct');
+      if (completeTd) completeTd.textContent = (qtyTotal > 0 ? (matched / qtyTotal * 100).toFixed(2) : '0.00') + '%';
+
+      var marketVol = parseQty(tr.dataset.marketvol);
+      var fillpctTd = tr.querySelector('.col-fillpct');
+      if (fillpctTd) fillpctTd.textContent = (marketVol > 0 ? (matched / marketVol * 100).toFixed(2) : '0.00') + '%';
+
+      var avgPx = parseQty(tr.dataset.avgpx);
+      var filledValueTd = tr.querySelector('.col-filledvalue');
+      if (filledValueTd) filledValueTd.textContent = formatQty(matched * avgPx);
+
+      // Chưa có khối lượng khớp → để trống Giá khớp TB (Avg Px), không hiện "0"
+      var avgpxTd = tr.querySelector('.col-avgpx');
+      if (avgpxTd) avgpxTd.textContent = matched > 0 ? formatQty(avgPx) : '';
+
+      // Chỉ tự chuyển trạng thái giữa các mốc Đã gửi/Khớp 1 phần/Khớp hết — không đụng tới
+      // Chờ xác nhận đặt / Chờ xác nhận sửa / Chờ xác nhận hủy / Chờ xử lý / Đã hủy (trạng thái vòng đời, không phải trạng thái khớp lệnh).
+      var statusEl = tr.querySelector('.col-status');
+      var curStatus = statusEl.textContent.trim();
+      if (curStatus === 'Đã gửi' || curStatus === 'Khớp 1 phần' || curStatus === 'Khớp hết') {
+        var newStatus = matched <= 0 ? 'Đã gửi' : (matched >= qtyTotal ? 'Khớp hết' : 'Khớp 1 phần');
+        if (newStatus !== curStatus) setOrderStatus(tr, newStatus);
+      }
+
+      // Lệnh tổng đang chọn vừa đổi REM BAL → cập nhật lại tooltip/khóa Khối lượng nếu cần
+      if (orderId === selectedOrderId) { refreshQtyRemBalHint(tr); updatePanelBorder(); }
     }
 
     function generateOrderId() {
@@ -1871,26 +1977,6 @@
       return prefix + String(seq).padStart(2, '0');
     }
 
-    // ===== 7: Chức năng hủy lệnh — bật popup xác nhận trước khi hủy thật =====
-    function cancelOrder() {
-      if (!selectedOrderId) return;
-      var tr = document.getElementById('row-' + selectedOrderId);
-      document.getElementById('cancelorder-summary').textContent = tr.dataset.side + ' ' + tr.dataset.symbol + ' ' + tr.dataset.qty;
-      document.getElementById('cancelorder-symbol').textContent = tr.dataset.symbol;
-      document.getElementById('cancelorder-account').textContent = ACCOUNTS[tr.dataset.account] || tr.dataset.account;
-      document.getElementById('cancelorder-orderid').textContent = selectedOrderId;
-      openModal('modal-cancel-order');
-    }
-
-    function confirmCancelOrder() {
-      if (!selectedOrderId) { closeModal('modal-cancel-order'); return; }
-      var tr = document.getElementById('row-' + selectedOrderId);
-      setOrderStatus(tr, 'Đã hủy');
-      cancelChildOrders(selectedOrderId); // 7.3: Cập nhật trạng thái tất cả lệnh con thuộc lệnh tổng này
-      document.getElementById('btn-cancel').hidden = true;
-      closeModal('modal-cancel-order');
-    }
-
     // ===== 4: Chi tiết lệnh (cột Thao tác) — popup "Thông tin lệnh khớp chi tiết" =====
     var detailOrderId = null; // lệnh đang hiển thị trong modal Detail — dùng để lưu lại khi sửa Ghi chú
 
@@ -1901,11 +1987,11 @@
       document.getElementById('detail-account').textContent = ACCOUNTS[tr.dataset.account] || tr.dataset.account;
       document.getElementById('detail-qty').textContent = tr.dataset.qty;
       document.getElementById('detail-price').textContent = tr.dataset.price;
-      document.getElementById('detail-avgpx').textContent = tr.dataset.avgpx || '0';
+      document.getElementById('detail-avgpx').textContent = tr.querySelector('.col-avgpx').textContent;
       document.getElementById('detail-subaccount').textContent = SUBACCOUNTS[tr.dataset.subaccount] || tr.dataset.subaccount;
       document.getElementById('detail-symbol').textContent = tr.dataset.symbol;
-      document.getElementById('detail-ordertype').textContent = tr.querySelector('.col-loaigia').textContent;
-      document.getElementById('detail-rembal').textContent = tr.querySelector('.col-rembal').textContent;
+      document.getElementById('detail-ordertype').textContent = tr.dataset.ordertype || '';
+      document.getElementById('detail-rembal').textContent = tr.querySelector('.col-remplace').textContent;
       document.getElementById('detail-fillqty').textContent = tr.dataset.fillqty || '0';
       document.getElementById('detail-instructions').textContent = tr.dataset.instructions || '';
       document.getElementById('detail-note').textContent = tr.dataset.note || '';
@@ -1956,33 +2042,28 @@
       icon.title = 'Sửa ghi chú';
     }
 
-    // Sinh lịch sử khớp giả lập từ Fill Qty của lệnh tổng, dùng cho popup Detail
+    // Liệt kê đúng các lệnh con thật của lệnh tổng (khớp số với Sổ lệnh con trong ngày),
+    // dùng cho popup Detail — thay vì tách Fill Qty thành các dòng giả lập.
     function buildFillHistory(tr) {
-      var fillQty = parseQty(tr.dataset.fillqty || '0');
-      var avgPx = tr.dataset.avgpx || '0';
-      var qty = parseQty(tr.dataset.qty || '0');
+      var orderId = tr.dataset.orderId;
       var tbody = document.getElementById('detail-fills-tbody');
+      var children = document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]');
 
-      if (fillQty <= 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có khớp lệnh</td></tr>';
+      if (!children.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có lệnh con</td></tr>';
         return;
       }
 
-      var ratios = [0.45, 0.2, 0.15, 0.2];
-      var chunks = ratios.map(function (r) { return Math.round(fillQty * r / 100) * 100; }).filter(function (n) { return n > 0; });
-      var sum = chunks.reduce(function (a, b) { return a + b; }, 0);
-      if (chunks.length && sum !== fillQty) chunks[0] += (fillQty - sum);
-
-      var now = new Date();
-      var cum = 0, rows = '';
-      chunks.forEach(function (amt, i) {
-        cum += amt;
-        var remain = Math.max(qty - cum, 0);
-        var t = new Date(now.getTime() - (chunks.length - i) * 60000);
-        var timeStr = t.toLocaleTimeString('vi-VN', { hour12: false });
-        var status = (cum >= qty) ? 'Khớp hết' : 'Khớp 1 phần';
-        rows += '<tr><td>' + timeStr + '</td><td class="mono">' + formatQty(amt) + '</td><td class="mono">' + formatQty(amt) + '</td><td class="mono">' +
-                avgPx + '</td><td class="mono">' + formatQty(remain) + '</td><td>' + status + '</td></tr>';
+      var rows = '';
+      children.forEach(function (r) {
+        var time = r.querySelector('.col-child-time').textContent.trim();
+        var placedQty = r.querySelector('.col-child-qty').textContent.trim();
+        var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
+        var price = r.querySelector('.col-child-price').textContent.trim();
+        var remain = r.querySelector('.col-child-remain').textContent.trim();
+        var status = r.querySelector('.col-child-status').textContent.trim();
+        rows += '<tr><td>' + time + '</td><td class="mono">' + placedQty + '</td><td class="mono">' + matchQty + '</td><td class="mono">' +
+                price + '</td><td class="mono">' + remain + '</td><td>' + status + '</td></tr>';
       });
       tbody.innerHTML = rows;
     }
@@ -2002,6 +2083,10 @@
         alert('Lệnh con đã khớp hết, không thể sửa.');
         return;
       }
+      if (childStatus === 'Chờ xác nhận') {
+        alert('Lệnh con đang chờ broker xác nhận yêu cầu sửa/hủy trước đó, không thể sửa tiếp.');
+        return;
+      }
       editingChildRow = tr;
       var accountCode = tr.querySelector('.link').textContent.trim();
       var subaccountCode = tr.querySelector('.col-child-subaccount').textContent.trim();
@@ -2011,7 +2096,7 @@
       var price = tr.querySelector('.col-child-price').textContent.trim();
 
       setSide(side);
-      document.getElementById('ord-account').value = ACCOUNTS[accountCode] || accountCode;
+      document.getElementById('ord-account').value = accountCode; // ô nhập tài khoản chỉ hiển thị số tài khoản
       populateSubaccountOptions(accountCode, subaccountCode);
       document.getElementById('ord-symbol').value = symbol;
       document.getElementById('ord-price').value = price;
@@ -2019,15 +2104,50 @@
       document.getElementById('ord-orderid').value = tr.dataset.parentId;
 
       setFormEditMode(true);
-      document.getElementById('btn-cancel').hidden = true;
+
+      // Chỉ enable "Đặt lệnh" khi Giá hoặc Khối lượng thực sự bị thay đổi so với lệnh con gốc
+      editingChildOriginal = { price: price, qty: qty };
+      validateOrderForm();
     }
 
     // Disable toàn bộ field trừ Giá/Khối lượng khi đang sửa 1 lệnh con
     function setFormEditMode(isEditing) {
-      ['ord-account', 'ord-subaccount', 'ord-symbol', 'ord-type'].forEach(function (id) {
-        document.getElementById(id).disabled = isEditing;
+      // Tài khoản/Chứng khoán: dùng readonly thay vì disabled — vẫn hiện rõ ràng (không mờ),
+      // chỉ khác trường hợp khóa toàn bộ khung (disabled xám) khi chưa chọn/sửa gì cả.
+      ['ord-account', 'ord-symbol'].forEach(function (id) {
+        var el = document.getElementById(id);
+        el.readOnly = isEditing;
+        if (isEditing) el.disabled = false;
       });
-      document.getElementById('side-toggle').classList.toggle('disabled-toggle', isEditing);
+      ['ord-subaccount', 'ord-type'].forEach(function (id) {
+        var el = document.getElementById(id);
+        el.disabled = isEditing;
+        el.classList.toggle('field-context-locked', isEditing);
+      });
+      document.getElementById('side-toggle').classList.toggle('side-toggle-context', isEditing);
+      if (isEditing) document.getElementById('side-toggle').classList.remove('disabled-toggle');
+      // Giá/Khối lượng luôn phải sửa được khi vào chế độ Sửa lệnh con, kể cả khi khung đang ở trạng thái khóa
+      if (isEditing) {
+        document.getElementById('ord-price').disabled = false;
+        document.getElementById('ord-qty').disabled = false;
+      }
+      updatePanelBorder();
+    }
+
+    // Viền khung Đặt lệnh: xanh lá khi đang enable đặt/sửa lệnh Mua, đỏ khi đang enable đặt/sửa lệnh Bán.
+    function updatePanelBorder() {
+      var panel = document.getElementById('panel-order-entry');
+      panel.classList.remove('panel-border-buy', 'panel-border-sell');
+      var side = document.getElementById('side-toggle').dataset.side;
+      var isBuy = side === 'Mua';
+      if (editingChildRow || !document.getElementById('ord-qty').disabled) {
+        panel.classList.add(isBuy ? 'panel-border-buy' : 'panel-border-sell');
+      }
+      // Chữ + màu nút "Đặt lệnh" luôn khớp Mua/Bán + đang đặt mới hay đang sửa lệnh con
+      var btn = document.getElementById('btn-place');
+      btn.textContent = (editingChildRow ? 'Sửa lệnh ' : 'Đặt lệnh ') + (isBuy ? 'Mua' : 'Bán');
+      btn.classList.remove('buy', 'sell');
+      btn.classList.add(isBuy ? 'buy' : 'sell');
     }
 
     // Khóa/mở khung "Đặt lệnh tổng" / "Đặt lệnh con"
@@ -2039,14 +2159,50 @@
       document.getElementById('side-toggle').classList.toggle('disabled-toggle', locked);
     }
 
-    // Chưa chọn lệnh tổng nào: click "Đặt lệnh tổng" trên toolbar để active (mở khóa) / click lần nữa để inactive (khóa lại)
+    // Nút "Đặt lệnh tổng" chỉ còn 2 trạng thái: sẵn sàng / đang đặt lệnh tổng.
+    // Click để chuyển sang "đang đặt lệnh tổng" sẽ bỏ chọn dòng lệnh tổng đang chọn (nếu có) và mở khóa khung nhập.
     function startNewOrderEntry() {
-      if (isToolbarBtnDisabled('btn-toolbar-place')) return;
-      var isLocked = document.getElementById('ord-symbol').disabled;
-      setOrderPanelLocked(!isLocked);
-      // Đổi màu nút theo trạng thái active/inactive để thấy rõ click đã có tác dụng
-      document.getElementById('btn-toolbar-place').classList.toggle('toggled-active', isLocked);
+      var btn = document.getElementById('btn-toolbar-place');
+      var isEntering = btn.classList.contains('toggled-active');
+      if (isEntering) {
+        btn.classList.remove('toggled-active');
+        setOrderPanelLocked(true);
+      } else {
+        if (selectedOrderId) clearSelection();
+        btn.classList.add('toggled-active');
+        setOrderPanelLocked(false);
+      }
       validateOrderForm();
+      updatePanelBorder();
+    }
+
+    // Hiển thị popup xác nhận với nội dung Giá/Khối lượng trước và sau khi sửa
+    function openEditChildConfirm() {
+      var price = document.getElementById('ord-price').value.trim();
+      var qty = document.getElementById('ord-qty').value.trim();
+      if (!price || !qty) {
+        alert('Vui lòng nhập đầy đủ Giá và Khối lượng.');
+        return;
+      }
+      var tr = editingChildRow;
+      var parentTr = document.getElementById('row-' + tr.dataset.parentId);
+      if (parseQty(qty) > parseQty(parentTr.dataset.qty)) {
+        alert('Khối lượng lệnh con (' + qty + ') phải nhỏ hơn hoặc bằng Qty (' + parentTr.dataset.qty + ') của lệnh tổng.');
+        return;
+      }
+
+      document.getElementById('editchild-symbol').textContent = tr.querySelector('.col-child-symbol').textContent.trim();
+      document.getElementById('editchild-side').textContent = tr.querySelector('.buy, .sell').textContent.trim();
+      document.getElementById('editchild-price-before').textContent = editingChildOriginal.price;
+      document.getElementById('editchild-price-after').textContent = price;
+      document.getElementById('editchild-qty-before').textContent = editingChildOriginal.qty;
+      document.getElementById('editchild-qty-after').textContent = qty;
+      openModal('modal-confirm-edit-child');
+    }
+
+    function confirmSaveChildOrderEdit() {
+      closeModal('modal-confirm-edit-child');
+      saveChildOrderEdit();
     }
 
     function saveChildOrderEdit() {
@@ -2076,6 +2232,7 @@
       origStatus.className = 'col-child-status badge-edited';
 
       editingChildRow = null;
+      editingChildOriginal = null;
       setFormEditMode(false);
 
       // Sinh dòng lệnh con mới với giá/KL đã sửa
@@ -2105,7 +2262,8 @@
 
     // ===== 5: Hủy lệnh con — popup xác nhận =====
     function openCancelChildModal(tr) {
-      if (tr.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') return;
+      var childStatus = tr.querySelector('.col-child-status').textContent.trim();
+      if (childStatus === 'Đã hủy' || childStatus === 'Chờ xác nhận') return;
       cancellingChildRow = tr;
       var sideText = tr.querySelector('.buy, .sell').textContent.trim();
       var isBuy = sideText.indexOf('Mua') === 0;
@@ -2129,6 +2287,7 @@
       var statusEl = tr.querySelector('.col-child-status');
       statusEl.textContent = 'Đã hủy';
       statusEl.className = 'col-child-status badge-cancelled';
+      tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
       disableChildRowActions(tr);
       updateOrderAggregates(tr.dataset.parentId);
       closeModal('modal-cancel-child');
@@ -2140,26 +2299,87 @@
       tr.addEventListener('click', function () { onRowClick(tr); });
     }
 
+    // ===== Dựng bảng "Bloomberg và lệnh tổng" từ PARENT_ORDERS (data.js) =====
+    function renderParentOrders() {
+      var tbody = document.getElementById('bbg-tbody');
+      tbody.innerHTML = PARENT_ORDERS.map(function (o) {
+        var netValue = o.qty * o.price;
+        var instructionsCell = o.instructions
+          ? '<span class="col-instructions-text" title="' + o.instructions + '">' + o.instructions + '</span>'
+          : '';
+        return '<tr id="row-' + o.orderId + '" data-order-id="' + o.orderId + '" ' +
+          'data-side="' + o.side + '" data-account="' + o.account + '" data-subaccount="' + o.subaccount + '" ' +
+          'data-symbol="' + o.symbol + '" data-price="' + formatQty(o.price) + '" data-qty="' + formatQty(o.qty) + '" ' +
+          'data-fillqty="' + formatQty(o.fillQty) + '" data-avgpx="' + formatQty(o.avgPx) + '" data-vwap="' + formatQty(o.vwap) + '" ' +
+          'data-instructions="' + o.instructions + '" data-note="' + o.note + '" data-marketvol="' + formatQty(o.marketVol) + '" ' +
+          'data-ordertype="' + o.orderType + '" data-route="' + o.route + '">' +
+          '<td><span class="status-dot"></span></td>' +
+          '<td>' + o.route + '</td>' +
+          '<td class="col-checkpx">' + o.checkPx + '</td>' +
+          '<td class="link">' + o.account + '</td>' +
+          '<td>' + o.subaccount + '</td>' +
+          '<td class="col-instructions">' + instructionsCell + '</td>' +
+          '<td><span class="col-status ' + (STATUS_BADGE[o.status] || '') + '">' + o.status + '</span></td>' +
+          '<td class="' + (o.side === 'Mua' ? 'buy' : 'sell') + '">' + o.side + '</td>' +
+          '<td>' + o.symbol + '</td>' +
+          '<td>' + formatQty(o.qty) + '</td>' +
+          '<td class="col-new">' + formatQty(o.price) + '</td>' +
+          '<td class="col-new col-fillqty">' + formatQty(o.fillQty) + '</td>' +
+          '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatQty(o.avgPx) : '') + '</td>' +
+          '<td class="col-new">' + formatQty(o.vwap) + '</td>' +
+          '<td class="col-new col-completepct">0.00%</td>' +
+          '<td class="col-new col-fillpct">0.00%</td>' +
+          '<td class="col-new col-rembal">0</td>' +
+          '<td class="col-new col-remplace">0</td>' +
+          '<td class="col-new col-netvalue">' + formatQty(netValue) + '</td>' +
+          '<td class="col-new col-filledvalue">0</td>' +
+          '<td class="col-new badge-id">' + o.orderId + '</td>' +
+          '<td>' + o.createTime + '</td>' +
+          '<td class="col-new col-klhuy">0</td>' +
+          '<td class="col-new">' + o.tradeId + '</td>' +
+          '<td class="col-new">' + o.note + '</td>' +
+          '</tr>';
+      }).join('');
+      // % Complete/% Khớp/TT/REM PLACE/Fill Qty/Filled Value/KL đã đặt/KL hủy tính lại đầy đủ ngay sau
+      // (updateOrderAggregates) từ dữ liệu lệnh con thật — các ô trên chỉ là placeholder trước khi tính.
+    }
+
+    // ===== Dựng bảng "Sổ lệnh con trong ngày" từ CHILD_ORDERS (data.js) =====
+    function renderChildOrders() {
+      var tbody = document.getElementById('child-tbody');
+      tbody.innerHTML = CHILD_ORDERS.map(function (c) {
+        var sideClass = c.side === 'Mua' ? 'buy' : 'sell';
+        var sideLabel = c.side + ' thông thường';
+        var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
+        var disabledCls = (c.status === 'Đã hủy' || c.status === 'Chờ xác nhận' || c.status === 'Khớp hết') ? ' disabled' : '';
+        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '">' +
+          '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
+          '<span class="tbtn' + disabledCls + '" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
+          '<span class="tbtn red' + disabledCls + '" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +
+          '<td class="link">' + c.account + '</td>' +
+          '<td class="col-child-subaccount">' + c.subaccount + '</td>' +
+          '<td class="col-child-symbol">' + c.symbol + '</td>' +
+          '<td class="col-child-time">' + c.time + '</td>' +
+          '<td class="' + sideClass + '">' + sideLabel + '</td>' +
+          '<td><span class="col-child-status ' + (STATUS_BADGE[c.status] || '') + '">' + c.status + '</span></td>' +
+          '<td>' + c.orderType + '</td>' +
+          '<td>' + c.trader + '</td>' +
+          '<td class="col-child-qty">' + formatQty(c.qty) + '</td>' +
+          '<td class="col-child-price">' + formatQty(c.price) + '</td>' +
+          '<td class="col-child-matchqty">' + formatQty(c.matchQty) + '</td>' +
+          '<td class="col-child-remain">' + formatQty(remain) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    renderParentOrders();
+    renderChildOrders();
     document.querySelectorAll('#bbg-tbody tr').forEach(bindRowClick);
 
-    // Gắn class ngữ nghĩa cho các cột "Sổ lệnh con" chưa có class riêng — để các hàm đọc dữ liệu
-    // (checkCrossMatch, editChildOrder, saveChildOrderEdit, openCancelChildModal) không phụ thuộc vị trí cột,
-    // cho phép kéo-thả đổi vị trí cột mà không làm sai dữ liệu đọc ra.
-    function tagChildTableSemanticClasses() {
-      document.querySelectorAll('#child-tbody tr').forEach(function (tr) {
-        var c = tr.children;
-        if (c[2]) c[2].classList.add('col-child-subaccount');
-        if (c[3]) c[3].classList.add('col-child-symbol');
-        if (c[10]) c[10].classList.add('col-child-price');
-      });
-    }
-    tagChildTableSemanticClasses();
-
     // Khởi tạo trạng thái ban đầu: chưa chọn lệnh tổng nào, khung "Đặt lệnh tổng" ở trạng thái khóa (inactive)
-    buildAccountDatalist();
     populateSubaccountOptions(null);
     setOrderPanelLocked(true);
-    document.getElementById('btn-cancel').hidden = true;
+    updatePanelBorder();
     filterChildOrders(selectedOrderId);
     updateToolbar(null);
     document.getElementById('btn-child-bulk-cancel').classList.toggle('disabled', !selectedOrderId);
