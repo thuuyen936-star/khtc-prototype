@@ -163,7 +163,9 @@
   .tbtn.buy { background: rgba(38,224,124,.14); border-color: var(--buy-dark); color: var(--buy); font-weight:600; }
   /* Trạng thái active (đã mở khóa) của nút "Đặt lệnh tổng" — tô đặc để phân biệt rõ với trạng thái inactive (viền nhạt) */
   .tbtn.toggled-active { background: linear-gradient(135deg,var(--blue),var(--blue-dark)); border-color: transparent; color:#fff; }
-  #btn-toolbar-done4day:not(.disabled), #btn-toolbar-refresh:not(.disabled) { color: var(--text-title); }
+  #btn-toolbar-done4day:not(.disabled), #btn-toolbar-refresh:not(.disabled),
+  #btn-toolbar-place:not(.disabled):not(.toggled-active), #btn-toolbar-edit:not(.disabled),
+  #btn-toolbar-detail:not(.disabled) { color: var(--text-title); }
   /* Disable — luôn đồng nhất chữ xám mờ, ghi đè màu riêng của .green/.red/.buy khi active */
   .tbtn.disabled { background: var(--grey-btn); border-color: transparent; color: var(--text-dim); cursor:not-allowed; pointer-events:none; }
 
@@ -270,6 +272,8 @@
   .field input, .field select { background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
         padding:8px 10px; color:var(--text-title); font-size:var(--fs-small); }
   .field input[readonly] { background:rgba(38,129,224,.08); color: var(--blue); border-color: var(--blue); }
+  /* Sửa lệnh con: Tài khoản/Chứng khoán không đổi màu chữ/khung, chỉ hiện trạng thái đang hoạt động (không mờ) */
+  .field input[readonly].field-context-locked { background:var(--input-bg); color: var(--text-title); border-color: var(--border); }
   /* Danh sách gợi ý Tài khoản — lọc động theo ký tự đang nhập (Số tài khoản - Tên tài khoản) */
   .account-suggest-list { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--input-bg);
         border:1px solid var(--border); border-radius:var(--radius-btn); max-height:220px; overflow-y:auto; z-index:20;
@@ -277,10 +281,10 @@
   .account-suggest-list[hidden] { display:none; }
   .account-suggest-item { padding:8px 10px; cursor:pointer; font-size:var(--fs-small); color:var(--text-title);
         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .account-suggest-item:hover { background:rgba(38,129,224,.15); }
+  .account-suggest-item:hover, .account-suggest-item.active { background:rgba(38,129,224,.15); }
   .account-suggest-item .code { color:var(--blue); font-weight:600; margin-right:6px; }
   /* Sửa lệnh con: các trường không cho sửa vẫn phải trông "đang hoạt động", khác với lúc khóa toàn bộ khung */
-  .field select.field-context-locked:disabled { opacity:1; cursor:default; background:rgba(38,129,224,.08); color: var(--blue); border-color: var(--blue); }
+  .field select.field-context-locked:disabled { opacity:1; cursor:default; background:var(--input-bg); color: var(--text-title); border-color: var(--border); }
   .side-toggle.side-toggle-context span { pointer-events:none; }
   /* Viền khung Đặt lệnh theo trạng thái đang hoạt động (kể cả đang sửa lệnh con):
      xanh lá = đang Mua, đỏ = đang Bán — xem updatePanelBorder() */
@@ -323,6 +327,15 @@
                cursor:pointer; border:none; text-align:center; }
   .modal-btn.cancel { background: var(--grey-btn); color:var(--text); }
   .modal-btn.confirm { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; }
+  .modal-btn.confirm.buy-confirm  { background:linear-gradient(135deg,var(--buy),var(--buy-dark)); }
+  .modal-btn.confirm.sell-confirm { background:linear-gradient(135deg,var(--sell),var(--sell-dark)); }
+  /* Header màn hình xác nhận đặt/sửa lệnh: Mã CK ở trên, Mua/Bán ở dưới, đều căn giữa */
+  .modal-order-header { text-align:center; margin-bottom:14px; }
+  .modal-order-symbol { font-size:var(--fs-hero); font-weight:700; color:var(--text-title); }
+  .modal-order-side { display:inline-block; font-size:var(--fs-medium); font-weight:700; margin-top:6px;
+        padding:4px 14px; border-radius:var(--radius-sm); }
+  .modal-order-side.buy  { color:var(--buy);  background:rgba(38,224,124,.14); }
+  .modal-order-side.sell { color:var(--sell); background:rgba(255,68,68,.14); }
   .modal-warn-icon { width:46px; height:46px; border-radius:50%; background:rgba(219,59,64,.15);
                       border:2px solid var(--sell-dark); color:var(--sell); font-size:var(--fs-hero); font-weight:bold;
                       display:flex; align-items:center; justify-content:center; margin:4px auto 14px; }
@@ -501,11 +514,11 @@
         <div class="toolbar" id="bbg-toolbar">
           <span class="tbtn buy" id="btn-ack" onclick="openAckModal()">ACK</span>
           <span class="tbtn red" id="btn-reject" onclick="openRejectModal()">REJECT</span>
-          <span class="tbtn green" id="btn-toolbar-place" onclick="startNewOrderEntry()">Đặt lệnh tổng</span>
-          <span class="tbtn green" id="btn-toolbar-edit" onclick="loadSelectedToForm('btn-toolbar-edit')">Sửa lệnh tổng</span>
+          <span class="tbtn" id="btn-toolbar-place" onclick="startNewOrderEntry()">Đặt lệnh tổng</span>
+          <span class="tbtn" id="btn-toolbar-edit" onclick="startEditParentOrder()">Sửa lệnh tổng</span>
           <span class="tbtn red" id="btn-toolbar-fixnet" onclick="openFixnetModal()">Huỷ từ Fix Net</span>
           <span class="tbtn" id="btn-toolbar-done4day">Done 4 Day</span>
-          <span class="tbtn green" id="btn-toolbar-detail" onclick="showSelectedDetail()">Detail</span>
+          <span class="tbtn" id="btn-toolbar-detail" onclick="showSelectedDetail()">Detail</span>
           <span class="tbtn" id="btn-toolbar-refresh">Refresh</span>
         </div>
         <div class="table-wrap table-wrap-bbg">
@@ -577,39 +590,40 @@
           <div class="field">
             <label>Mua / Bán</label>
             <div class="side-toggle" id="side-toggle" data-side="Mua">
-              <span class="side-active-buy" id="side-buy" onclick="setSide('Mua')">Mua</span>
-              <span class="side-inactive" id="side-sell" onclick="setSide('Bán')">Bán</span>
+              <span class="side-active-buy" id="side-buy" tabindex="1" onclick="setSide('Mua')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setSide('Mua');}">Mua</span>
+              <span class="side-inactive" id="side-sell" tabindex="2" onclick="setSide('Bán')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setSide('Bán');}">Bán</span>
             </div>
           </div>
           <div class="field grow" style="position:relative;">
             <label>Tài khoản</label>
-            <input id="ord-account" autocomplete="off"
+            <input id="ord-account" autocomplete="off" tabindex="3"
                    placeholder="Nhập số tài khoản để tìm..."
                    value=""
                    oninput="onAccountInput(this.value)"
                    onfocus="onAccountInput(this.value)"
-                   onblur="setTimeout(hideAccountSuggestions, 150)">
+                   onblur="setTimeout(hideAccountSuggestions, 150)"
+                   onkeydown="handleAccountKeydown(event)">
             <div class="account-suggest-list" id="account-suggest-list" hidden></div>
           </div>
           <div class="field grow">
             <label>Tiểu khoản</label>
-            <select id="ord-subaccount" onchange="validateOrderForm()"></select>
+            <select id="ord-subaccount" onchange="validateOrderForm()" tabindex="4"></select>
           </div>
           <div class="field narrow">
             <label>Chứng khoán</label>
-            <input id="ord-symbol" value="" oninput="validateOrderForm()">
+            <input id="ord-symbol" value="" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();validateOrderForm();" tabindex="5">
           </div>
           <div class="field">
             <label>Loại lệnh</label>
-            <select id="ord-type" tabindex="1"><option>Limit</option><option>Market</option></select>
+            <select id="ord-type" tabindex="6"><option>Limit</option><option>Market</option></select>
           </div>
           <div class="field narrow">
             <label>Giá</label>
-            <input id="ord-price" value="" oninput="validateOrderForm()" tabindex="2">
+            <input id="ord-price" value="" oninput="validateOrderForm()" tabindex="7">
           </div>
           <div class="field narrow">
             <label>Khối lượng</label>
-            <input id="ord-qty" value="" oninput="validateOrderForm()" tabindex="3">
+            <input id="ord-qty" value="" oninput="validateOrderForm()" tabindex="8">
           </div>
           <div class="field wide">
             <label>Số hiệu lệnh tổng</label>
@@ -618,10 +632,12 @@
         </div>
         <div class="order-row2">
           <div class="field note-field">
-            <input id="ord-note" placeholder="Ghi chú">
+            <input id="ord-note" placeholder="Ghi chú"
+                   onkeydown="if(event.key==='Tab'&&!event.shiftKey&&!document.getElementById('btn-place').disabled){event.preventDefault();document.getElementById('btn-place').focus();}">
           </div>
-          <button class="btn-action buy" id="btn-place" onclick="placeOrder()" tabindex="4">Đặt lệnh</button>
-          <button class="btn-action ghost" id="btn-refresh" onclick="refreshForm()" tabindex="5">🔄 Refresh</button>
+          <button class="btn-action buy" id="btn-place" onclick="placeOrder()" tabindex="9">Đặt lệnh</button>
+          <button class="btn-action ghost" id="btn-refresh" onclick="refreshForm()" tabindex="10"
+                  onkeydown="if(event.key==='Tab'&&!event.shiftKey){event.preventDefault();document.getElementById('side-buy').focus();}">🔄 Refresh</button>
         </div>
       </div>
 
@@ -732,18 +748,22 @@
   <div class="modal-overlay" id="modal-fixnet" hidden>
     <div class="modal-box">
       <div class="modal-title-row">
-        <span class="modal-title">Hủy lệnh từ FixNet</span>
+        <span class="modal-title title-danger">Hủy lệnh từ FixNet</span>
         <span class="modal-close" onclick="closeModal('modal-fixnet')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="fixnet-header-symbol"></div>
+        <div class="modal-order-side" id="fixnet-header-side"></div>
+      </div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Lệnh tổng</label><span id="fixnet-order-summary"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng</label><span id="fixnet-order-summary"></span></div>
         <div class="modal-kv-row"><label>Giá</label><span id="fixnet-price"></span></div>
         <div class="modal-kv-row"><label>Số hiệu lệnh</label><span id="fixnet-order-id"></span></div>
       </div>
       <div class="modal-verified">✔ Đã xác thực</div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-fixnet')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmFixnet()">Xác nhận</button>
+        <button class="modal-btn confirm" id="fixnet-confirm-btn" onclick="confirmFixnet()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -803,17 +823,19 @@
         <span class="modal-title title-danger">Xác nhận hủy lệnh con</span>
         <span class="modal-close" onclick="closeModal('modal-cancel-child')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="cancelchild-header-symbol"></div>
+        <div class="modal-order-side" id="cancelchild-header-side"></div>
+      </div>
       <div class="modal-kv-group">
         <div class="modal-kv-row"><label>Lệnh Hủy</label><span id="cancelchild-summary"></span></div>
-        <div class="modal-kv-row"><label>Mã CK</label><span id="cancelchild-symbol"></span></div>
-        <div class="modal-kv-row"><label>Loại lệnh</label><span id="cancelchild-side"></span></div>
         <div class="modal-kv-row"><label>Giá (x1000)</label><span id="cancelchild-price"></span></div>
         <div class="modal-kv-row"><label>Số hiệu lệnh</label><span id="cancelchild-orderid"></span></div>
       </div>
       <div class="modal-verified">✔ Đã xác thực</div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-cancel-child')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmCancelChild()">Xác nhận</button>
+        <button class="modal-btn confirm" id="cancelchild-confirm-btn" onclick="confirmCancelChild()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -825,9 +847,11 @@
         <span class="modal-title">Xác nhận đặt lệnh con</span>
         <span class="modal-close" onclick="closeModal('modal-confirm-child-place')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="childplace-header-symbol"></div>
+        <div class="modal-order-side" id="childplace-header-side"></div>
+      </div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Mã CK</label><span id="childplace-symbol"></span></div>
-        <div class="modal-kv-row"><label>Lệnh</label><span id="childplace-side"></span></div>
         <div class="modal-kv-row"><label>Số lượng</label><span id="childplace-qty"></span></div>
         <div class="modal-kv-row"><label>Giá đặt</label><span id="childplace-price"></span></div>
         <div class="modal-kv-row"><label>Giá trị</label><span id="childplace-value"></span></div>
@@ -836,7 +860,7 @@
       <div class="modal-verified">✔ Đã xác thực</div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-confirm-child-place')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmChildPlace()">Xác nhận</button>
+        <button class="modal-btn confirm" id="childplace-confirm-btn" onclick="confirmChildPlace()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -871,11 +895,13 @@
         <span class="modal-title">Xác nhận đặt lệnh tổng</span>
         <span class="modal-close" onclick="closeModal('modal-confirm-place')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="confirm-place-header-symbol"></div>
+        <div class="modal-order-side" id="confirm-place-header-side"></div>
+      </div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Lệnh</label><span id="confirm-place-side"></span></div>
         <div class="modal-kv-row"><label>Tài khoản</label><span id="confirm-place-account"></span></div>
         <div class="modal-kv-row"><label>Tiểu khoản</label><span id="confirm-place-subaccount"></span></div>
-        <div class="modal-kv-row"><label>Chứng khoán</label><span id="confirm-place-symbol"></span></div>
         <div class="modal-kv-row"><label>Giá</label><span id="confirm-place-price"></span></div>
         <div class="modal-kv-row"><label>Khối lượng</label><span id="confirm-place-qty"></span></div>
         <div class="modal-kv-row"><label>Ghi chú</label><span id="confirm-place-note"></span></div>
@@ -883,7 +909,7 @@
       <div class="modal-verified">✔ Đã xác thực</div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-confirm-place')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmPlaceOrderCreate()">Xác nhận</button>
+        <button class="modal-btn confirm" id="confirm-place-btn" onclick="confirmPlaceOrderCreate()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -895,9 +921,11 @@
         <span class="modal-title">Xác nhận sửa lệnh con</span>
         <span class="modal-close" onclick="closeModal('modal-confirm-edit-child')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="editchild-header-symbol"></div>
+        <div class="modal-order-side" id="editchild-header-side"></div>
+      </div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Mã CK</label><span id="editchild-symbol"></span></div>
-        <div class="modal-kv-row"><label>Lệnh</label><span id="editchild-side"></span></div>
         <div class="modal-kv-row"><label>Giá trước sửa</label><span id="editchild-price-before"></span></div>
         <div class="modal-kv-row"><label>Giá sau sửa</label><span id="editchild-price-after"></span></div>
         <div class="modal-kv-row"><label>Khối lượng trước sửa</label><span id="editchild-qty-before"></span></div>
@@ -906,7 +934,32 @@
       <div class="modal-verified">✔ Đã xác thực</div>
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="closeModal('modal-confirm-edit-child')">Quay lại</button>
-        <button class="modal-btn confirm" onclick="confirmSaveChildOrderEdit()">Xác nhận</button>
+        <button class="modal-btn confirm" id="editchild-confirm-btn" onclick="confirmSaveChildOrderEdit()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Xác nhận Sửa lệnh tổng (Giá/Khối lượng trước-sau khi sửa) ===== -->
+  <div class="modal-overlay" id="modal-confirm-edit-parent" hidden>
+    <div class="modal-box">
+      <div class="modal-title-row">
+        <span class="modal-title">Xác nhận sửa lệnh tổng</span>
+        <span class="modal-close" onclick="closeModal('modal-confirm-edit-parent')">✕</span>
+      </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="editparent-header-symbol"></div>
+        <div class="modal-order-side" id="editparent-header-side"></div>
+      </div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Giá trước sửa</label><span id="editparent-price-before"></span></div>
+        <div class="modal-kv-row"><label>Giá sau sửa</label><span id="editparent-price-after"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng trước sửa</label><span id="editparent-qty-before"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng sau sửa</label><span id="editparent-qty-after"></span></div>
+      </div>
+      <div class="modal-verified">✔ Đã xác thực</div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeModal('modal-confirm-edit-parent')">Quay lại</button>
+        <button class="modal-btn confirm" id="editparent-confirm-btn" onclick="confirmSaveParentOrderEdit()">Xác nhận</button>
       </div>
     </div>
   </div>
@@ -961,12 +1014,15 @@
     var selectedOrderId = null; // Mặc định ban đầu: chưa chọn lệnh tổng nào (9.1: chỉ 1 dòng được chọn)
     var editingChildRow = null;    // dòng lệnh con đang được "Sửa" (mục 5)
     var editingChildOriginal = null; // {price, qty} gốc của dòng đang sửa — để so sánh phát hiện thay đổi
+    var editingParentRow = null;    // dòng lệnh tổng đang được "Sửa lệnh tổng" (khác với editingChildRow)
+    var editingParentOriginal = null; // {price, qty} gốc của lệnh tổng trước khi sửa — để so sánh phát hiện thay đổi
     var cancellingChildRow = null; // dòng lệnh con đang chờ xác nhận "Hủy" (mục 5)
     var childBulkCancelMode = false; // đang ở chế độ tick chọn để hủy hàng loạt lệnh con
     var pendingBulkCancelRows = [];  // các dòng lệnh con đã tick, chờ xác nhận hủy hàng loạt
     var bbgSearch = {};   // {colIndex: text} — tìm kiếm theo cột khung "Bloomberg và lệnh tổng" (mục 2)
     var childSearch = {}; // {colIndex: text} — tìm kiếm theo cột khung "Sổ lệnh con trong ngày" (mục 2)
     var sortState = {};   // {tbodyId: {col, dir}} — chỉ 1 cột được sort tại 1 thời điểm (mục 1)
+    var accountSuggestIndex = -1; // dòng đang được highlight trong danh sách gợi ý Tài khoản (điều hướng bằng phím lên/xuống)
 
     // ===== Xem toàn màn hình — trình duyệt không cho trang web tự phóng to cửa sổ,
     // nên cần người xem bấm nút này (Fullscreen API yêu cầu user gesture) =====
@@ -1023,6 +1079,8 @@
     function applySelection(orderId) {
       editingChildRow = null;
       editingChildOriginal = null;
+      editingParentRow = null;
+      editingParentOriginal = null;
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1047,6 +1105,7 @@
       setChildEntryFieldsLocked(true, !isActive);
       if (isActive) {
         refreshQtyRemBalHint(tr);
+        document.getElementById('ord-type').focus(); // Đặt lệnh con: Mua/Bán, Tài khoản... đã khóa, bắt đầu ở Loại lệnh
       } else {
         document.getElementById('ord-qty').title = '';
       }
@@ -1061,6 +1120,8 @@
     function clearSelection() {
       editingChildRow = null;
       editingChildOriginal = null;
+      editingParentRow = null;
+      editingParentOriginal = null;
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1125,11 +1186,24 @@
       return document.getElementById(id).classList.contains('disabled');
     }
 
-    function loadSelectedToForm(btnId) {
-      if (btnId && isToolbarBtnDisabled(btnId)) return;
+    // "Sửa lệnh tổng": chuyển từ chế độ đặt lệnh con (mặc định khi check 1 dòng) sang chế độ sửa Giá/
+    // Khối lượng của chính lệnh tổng đang chọn — khác với "Sửa" lệnh con (tạo dòng lệnh con mới đã sửa).
+    function startEditParentOrder() {
+      if (isToolbarBtnDisabled('btn-toolbar-edit')) return;
       var tr = requireSelectedRow();
       if (!tr) return;
-      loadOrderToForm(tr);
+
+      editingChildRow = null;
+      editingChildOriginal = null;
+
+      editingParentRow = tr;
+      editingParentOriginal = { price: tr.dataset.price, qty: tr.dataset.qty };
+      document.getElementById('ord-price').value = tr.dataset.price;
+      document.getElementById('ord-qty').value = tr.dataset.qty;
+
+      setFormEditMode(true);
+      document.getElementById('ord-price').focus();
+      validateOrderForm();
     }
 
     // ===== 4: Chi tiết lệnh — chuyển lên toolbar, đứng cạnh Refresh (tác động lên dòng đang chọn) =====
@@ -1250,6 +1324,18 @@
     function closeModal(id) { document.getElementById(id).hidden = true; }
     function getOtp(inputId) { document.getElementById(inputId).value = '123456'; }
 
+    // Mọi màn hình xác nhận: Enter = click nút "Xác nhận", Esc = click nút "Quay lại"/"Đóng" của modal đang mở
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Enter' && e.key !== 'Escape') return;
+      var openOverlay = document.querySelector('.modal-overlay:not([hidden])');
+      if (!openOverlay) return;
+      var btn = openOverlay.querySelector(e.key === 'Enter' ? '.modal-btn.confirm' : '.modal-btn.cancel');
+      if (btn && !btn.disabled) {
+        e.preventDefault();
+        btn.click();
+      }
+    });
+
     // ===== 1.1: ACK — dùng chung để xác nhận Đặt lệnh / Sửa lệnh / Hủy lệnh, tùy trạng thái đang chọn =====
     function openAckModal() {
       if (isToolbarBtnDisabled('btn-ack')) return;
@@ -1321,10 +1407,18 @@
     // Phần lõi mở modal Fix Net, dùng chung cho nút toolbar và ACK (khi "Chờ xác nhận hủy") —
     // không kiểm tra trạng thái disabled của nút toolbar vì ACK có điều kiện enable riêng.
     function openFixnetModalCore(tr) {
-      document.getElementById('fixnet-order-summary').textContent =
-        tr.dataset.symbol + ' - ' + tr.dataset.side + ' - ' + tr.dataset.qty;
+      var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('fixnet-header-symbol').textContent = tr.dataset.symbol;
+      var sideHeaderEl = document.getElementById('fixnet-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
+      document.getElementById('fixnet-order-summary').textContent = tr.dataset.qty;
       document.getElementById('fixnet-price').textContent = tr.dataset.price;
       document.getElementById('fixnet-order-id').textContent = tr.dataset.orderId;
+      var fixnetBtn = document.getElementById('fixnet-confirm-btn');
+      fixnetBtn.textContent = isBuy ? 'Xác nhận hủy Mua' : 'Xác nhận hủy Bán';
+      fixnetBtn.classList.remove('buy-confirm', 'sell-confirm');
+      fixnetBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
       openModal('modal-fixnet');
     }
 
@@ -1337,12 +1431,15 @@
     }
 
     // ===== Tài khoản: gợi ý tùy chỉnh tìm theo Số tài khoản/Tên tài khoản; Tiểu khoản: dropdown theo Tài khoản đang chọn =====
+    var accountSuggestMatches = []; // accountCode của các dòng đang hiển thị — dùng để tra cứu khi điều hướng bằng phím
     function renderAccountSuggestions(value) {
       var box = document.getElementById('account-suggest-list');
       var term = value.trim().toLowerCase();
       var matches = CUSTOMERS.filter(function (c) {
         return !term || c.accountCode.toLowerCase().indexOf(term) !== -1 || c.accountName.toLowerCase().indexOf(term) !== -1;
       });
+      accountSuggestMatches = matches.map(function (c) { return c.accountCode; });
+      accountSuggestIndex = -1;
       if (!matches.length) { box.hidden = true; box.innerHTML = ''; return; }
       box.innerHTML = matches.map(function (c) {
         return '<div class="account-suggest-item" onmousedown="selectAccountSuggestion(\'' + c.accountCode + '\')">' +
@@ -1360,6 +1457,34 @@
 
     function hideAccountSuggestions() {
       document.getElementById('account-suggest-list').hidden = true;
+    }
+
+    // Phím lên/xuống: di chuyển highlight giữa các dòng gợi ý Tài khoản đang hiển thị
+    function moveAccountSuggestion(delta) {
+      var box = document.getElementById('account-suggest-list');
+      if (box.hidden || !accountSuggestMatches.length) return;
+      accountSuggestIndex = (accountSuggestIndex + delta + accountSuggestMatches.length) % accountSuggestMatches.length;
+      Array.prototype.forEach.call(box.children, function (el, i) {
+        el.classList.toggle('active', i === accountSuggestIndex);
+      });
+      var activeEl = box.children[accountSuggestIndex];
+      if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+    }
+
+    // Enter khi đang có dòng gợi ý được highlight → chọn dòng đó; trả về true nếu đã xử lý
+    function confirmAccountSuggestion() {
+      var box = document.getElementById('account-suggest-list');
+      if (box.hidden || accountSuggestIndex < 0 || !accountSuggestMatches[accountSuggestIndex]) return false;
+      selectAccountSuggestion(accountSuggestMatches[accountSuggestIndex]);
+      return true;
+    }
+
+    function handleAccountKeydown(e) {
+      var box = document.getElementById('account-suggest-list');
+      if (box.hidden) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveAccountSuggestion(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); moveAccountSuggestion(-1); }
+      else if (e.key === 'Enter') { if (confirmAccountSuggestion()) e.preventDefault(); }
     }
 
     function populateSubaccountOptions(accountCode, selectedCode) {
@@ -1403,6 +1528,17 @@
         return;
       }
 
+      // Đang sửa lệnh tổng: chỉ enable "Sửa lệnh" khi Giá/Khối lượng hợp lệ VÀ có ít nhất 1 trong 2 trường bị đổi
+      if (editingParentRow) {
+        var parentEditPrice = document.getElementById('ord-price').value.trim();
+        var parentEditQty = document.getElementById('ord-qty').value.trim();
+        var parentEditValid = !!(parentEditPrice && parentEditQty && parseQty(parentEditQty) > 0);
+        var parentChanged = !!editingParentOriginal &&
+          (parentEditPrice !== editingParentOriginal.price || parentEditQty !== editingParentOriginal.qty);
+        btn.disabled = !parentEditValid || !parentChanged;
+        return;
+      }
+
       var symbolEl = document.getElementById('ord-symbol');
       // Khung đang khóa hoàn toàn (chưa chọn lệnh tổng nào, chưa bấm "Đặt lệnh tổng") — phân biệt với lúc
       // đã check 1 lệnh tổng (Chứng khoán/Giá... bị khóa nhưng vẫn có selectedOrderId để đặt lệnh con)
@@ -1430,7 +1566,7 @@
     // ===== 6.2: Đồng bộ dữ liệu dòng được chọn sang khung "Đặt lệnh tổng" =====
     function loadOrderToForm(tr) {
       setSide(tr.dataset.side);
-      document.getElementById('ord-account').value = tr.dataset.account; // ô nhập tài khoản chỉ hiển thị số tài khoản
+      document.getElementById('ord-account').value = ACCOUNTS[tr.dataset.account] || tr.dataset.account; // check lệnh tổng: hiện đủ Số tài khoản - Tên tài khoản
       populateSubaccountOptions(tr.dataset.account, tr.dataset.subaccount);
       document.getElementById('ord-symbol').value = tr.dataset.symbol;
       document.getElementById('ord-type').value = (tr.dataset.ordertype === 'LO') ? 'Limit' : 'Market';
@@ -1481,8 +1617,14 @@
       validateOrderForm();
     }
 
-    // Nút "Refresh" xóa trắng khung Đặt lệnh tổng, đồng thời bỏ chọn (tắt chấm active) dòng lệnh tổng đang chọn
+    // Nút "Refresh": nếu đang ở chế độ "Đặt lệnh tổng" (khung đang mở để nhập lệnh mới) thì chỉ xóa
+    // trắng dữ liệu + về lại trạng thái Mua, KHÔNG khóa khung. Ngược lại (đang chọn 1 dòng lệnh tổng)
+    // thì bỏ chọn dòng đó như cũ (tắt chấm active, khóa khung).
     function refreshForm() {
+      if (document.getElementById('btn-toolbar-place').classList.contains('toggled-active')) {
+        resetForm();
+        return;
+      }
       clearSelection();
     }
 
@@ -1655,6 +1797,10 @@
         openEditChildConfirm();
         return;
       }
+      if (editingParentRow) {
+        openEditParentConfirm();
+        return;
+      }
       var side = document.getElementById('side-toggle').dataset.side;
       var account = document.getElementById('ord-account').value.trim();
       var subaccount = document.getElementById('ord-subaccount').value.trim();
@@ -1691,15 +1837,20 @@
       var subaccountSelect = document.getElementById('ord-subaccount');
       var subaccountLabel = subaccountSelect.selectedOptions[0] ? subaccountSelect.selectedOptions[0].textContent : data.subaccountCode;
 
-      var sideEl = document.getElementById('confirm-place-side');
-      sideEl.textContent = data.side;
-      sideEl.style.color = data.side === 'Mua' ? 'var(--up)' : 'var(--down)';
+      var isBuy = data.side === 'Mua';
+      document.getElementById('confirm-place-header-symbol').textContent = data.symbol;
+      var sideHeaderEl = document.getElementById('confirm-place-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('confirm-place-account').textContent = data.account;
       document.getElementById('confirm-place-subaccount').textContent = subaccountLabel;
-      document.getElementById('confirm-place-symbol').textContent = data.symbol;
       document.getElementById('confirm-place-price').textContent = data.price;
       document.getElementById('confirm-place-qty').textContent = data.qty;
       document.getElementById('confirm-place-note').textContent = data.note || '—';
+      var placeConfirmBtn = document.getElementById('confirm-place-btn');
+      placeConfirmBtn.textContent = isBuy ? 'Xác nhận đặt Mua' : 'Xác nhận đặt Bán';
+      placeConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
+      placeConfirmBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
       openModal('modal-confirm-place');
     }
 
@@ -1746,8 +1897,8 @@
         '<td class="col-instructions"></td>' +
         '<td><span class="col-status badge-pending">Chờ xác nhận đặt</span></td>' +
         '<td class="' + sideClass + '">' + side + '</td>' +
-        '<td>' + symbol + '</td><td>' + qty + '</td>' +
-        '<td class="col-new">' + price + '</td>' +
+        '<td>' + symbol + '</td><td class="col-qty">' + qty + '</td>' +
+        '<td class="col-new col-price">' + price + '</td>' +
         '<td class="col-new col-fillqty">0</td>' +
         '<td class="col-new col-avgpx"></td>' +
         '<td class="col-new">' + price + '</td>' +
@@ -1807,14 +1958,19 @@
       var value = childQty * childPrice;
       var avgPx = calcExpectedAvgPrice(parentTr, childQty, childPrice);
 
-      var sideEl = document.getElementById('childplace-side');
-      sideEl.textContent = side === 'Mua' ? 'MUA' : 'BÁN';
-      sideEl.className = side === 'Mua' ? 'buy' : 'sell';
-      document.getElementById('childplace-symbol').textContent = symbol;
+      var isBuy = side === 'Mua';
+      document.getElementById('childplace-header-symbol').textContent = symbol;
+      var sideHeaderEl = document.getElementById('childplace-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('childplace-qty').textContent = formatQty(childQty);
       document.getElementById('childplace-price').textContent = formatQty(childPrice);
       document.getElementById('childplace-value').textContent = formatQty(value);
       document.getElementById('childplace-avgpx').textContent = formatQty(Math.round(avgPx));
+      var childConfirmBtn = document.getElementById('childplace-confirm-btn');
+      childConfirmBtn.textContent = isBuy ? 'Xác nhận đặt Mua' : 'Xác nhận đặt Bán';
+      childConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
+      childConfirmBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
       openModal('modal-confirm-child-place');
     }
 
@@ -2118,6 +2274,7 @@
         var el = document.getElementById(id);
         el.readOnly = isEditing;
         if (isEditing) el.disabled = false;
+        el.classList.toggle('field-context-locked', isEditing);
       });
       ['ord-subaccount', 'ord-type'].forEach(function (id) {
         var el = document.getElementById(id);
@@ -2140,12 +2297,12 @@
       panel.classList.remove('panel-border-buy', 'panel-border-sell');
       var side = document.getElementById('side-toggle').dataset.side;
       var isBuy = side === 'Mua';
-      if (editingChildRow || !document.getElementById('ord-qty').disabled) {
+      if (editingChildRow || editingParentRow || !document.getElementById('ord-qty').disabled) {
         panel.classList.add(isBuy ? 'panel-border-buy' : 'panel-border-sell');
       }
-      // Chữ + màu nút "Đặt lệnh" luôn khớp Mua/Bán + đang đặt mới hay đang sửa lệnh con
+      // Chữ + màu nút "Đặt lệnh" luôn khớp Mua/Bán + đang đặt mới hay đang sửa lệnh (con/tổng)
       var btn = document.getElementById('btn-place');
-      btn.textContent = (editingChildRow ? 'Sửa lệnh ' : 'Đặt lệnh ') + (isBuy ? 'Mua' : 'Bán');
+      btn.textContent = ((editingChildRow || editingParentRow) ? 'Sửa lệnh ' : 'Đặt lệnh ') + (isBuy ? 'Mua' : 'Bán');
       btn.classList.remove('buy', 'sell');
       btn.classList.add(isBuy ? 'buy' : 'sell');
     }
@@ -2171,6 +2328,7 @@
         if (selectedOrderId) clearSelection();
         btn.classList.add('toggled-active');
         setOrderPanelLocked(false);
+        document.getElementById('side-buy').focus(); // Mua mặc định, Tab để chuyển tiếp qua Bán, Tài khoản...
       }
       validateOrderForm();
       updatePanelBorder();
@@ -2191,12 +2349,19 @@
         return;
       }
 
-      document.getElementById('editchild-symbol').textContent = tr.querySelector('.col-child-symbol').textContent.trim();
-      document.getElementById('editchild-side').textContent = tr.querySelector('.buy, .sell').textContent.trim();
+      var isBuy = tr.querySelector('.buy, .sell').textContent.trim().indexOf('Mua') === 0;
+      document.getElementById('editchild-header-symbol').textContent = tr.querySelector('.col-child-symbol').textContent.trim();
+      var sideHeaderEl = document.getElementById('editchild-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('editchild-price-before').textContent = editingChildOriginal.price;
       document.getElementById('editchild-price-after').textContent = price;
       document.getElementById('editchild-qty-before').textContent = editingChildOriginal.qty;
       document.getElementById('editchild-qty-after').textContent = qty;
+      var editConfirmBtn = document.getElementById('editchild-confirm-btn');
+      editConfirmBtn.textContent = isBuy ? 'Xác nhận sửa Mua' : 'Xác nhận sửa Bán';
+      editConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
+      editConfirmBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
       openModal('modal-confirm-edit-child');
     }
 
@@ -2233,6 +2398,8 @@
 
       editingChildRow = null;
       editingChildOriginal = null;
+      editingParentRow = null;
+      editingParentOriginal = null;
       setFormEditMode(false);
 
       // Sinh dòng lệnh con mới với giá/KL đã sửa
@@ -2244,6 +2411,58 @@
       } else {
         resetForm();
       }
+    }
+
+    // Hiển thị popup xác nhận Sửa lệnh tổng với Giá/Khối lượng trước và sau khi sửa
+    function openEditParentConfirm() {
+      var price = document.getElementById('ord-price').value.trim();
+      var qty = document.getElementById('ord-qty').value.trim();
+      if (!price || !qty) {
+        alert('Vui lòng nhập đầy đủ Giá và Khối lượng.');
+        return;
+      }
+      var tr = editingParentRow;
+      var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('editparent-header-symbol').textContent = tr.dataset.symbol;
+      var sideHeaderEl = document.getElementById('editparent-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
+      document.getElementById('editparent-price-before').textContent = editingParentOriginal.price;
+      document.getElementById('editparent-price-after').textContent = price;
+      document.getElementById('editparent-qty-before').textContent = editingParentOriginal.qty;
+      document.getElementById('editparent-qty-after').textContent = qty;
+      var editConfirmBtn = document.getElementById('editparent-confirm-btn');
+      editConfirmBtn.textContent = isBuy ? 'Xác nhận sửa Mua' : 'Xác nhận sửa Bán';
+      editConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
+      editConfirmBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
+      openModal('modal-confirm-edit-parent');
+    }
+
+    function confirmSaveParentOrderEdit() {
+      closeModal('modal-confirm-edit-parent');
+      saveParentOrderEdit();
+    }
+
+    function saveParentOrderEdit() {
+      var price = document.getElementById('ord-price').value.trim();
+      var qty = document.getElementById('ord-qty').value.trim();
+      var tr = editingParentRow;
+      if (!tr || !price || !qty) return;
+
+      tr.dataset.price = price;
+      tr.dataset.qty = qty;
+      var priceTd = tr.querySelector('.col-price');
+      if (priceTd) priceTd.textContent = price;
+      var qtyTd = tr.querySelector('.col-qty');
+      if (qtyTd) qtyTd.textContent = qty;
+      var netvalueTd = tr.querySelector('.col-netvalue');
+      if (netvalueTd) netvalueTd.textContent = formatQty(parseQty(qty) * parseQty(price));
+
+      // Xác nhận xong là áp dụng ngay, lệnh vẫn ở trạng thái hoạt động — không qua bước chờ ACK
+      updateOrderAggregates(tr.dataset.orderId);
+
+      // Quay lại chế độ đặt lệnh con (applySelection tự reset editingParentRow + khóa lại đúng trạng thái)
+      applySelection(tr.dataset.orderId);
     }
 
     function generateChildId() {
@@ -2272,12 +2491,16 @@
       var price = tr.querySelector('.col-child-price').textContent.trim();
 
       document.getElementById('cancelchild-summary').textContent = sideText + ' ' + symbol + ' ' + qty;
-      document.getElementById('cancelchild-symbol').textContent = symbol;
-      var sideEl = document.getElementById('cancelchild-side');
-      sideEl.textContent = isBuy ? 'MUA' : 'BÁN';
-      sideEl.className = isBuy ? 'buy' : 'sell';
+      document.getElementById('cancelchild-header-symbol').textContent = symbol;
+      var sideHeaderEl = document.getElementById('cancelchild-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('cancelchild-price').textContent = price;
       document.getElementById('cancelchild-orderid').textContent = tr.dataset.childId || tr.dataset.parentId;
+      var cancelChildBtn = document.getElementById('cancelchild-confirm-btn');
+      cancelChildBtn.textContent = isBuy ? 'Xác nhận hủy Mua' : 'Xác nhận hủy Bán';
+      cancelChildBtn.classList.remove('buy-confirm', 'sell-confirm');
+      cancelChildBtn.classList.add(isBuy ? 'buy-confirm' : 'sell-confirm');
       openModal('modal-cancel-child');
     }
 
@@ -2322,8 +2545,8 @@
           '<td><span class="col-status ' + (STATUS_BADGE[o.status] || '') + '">' + o.status + '</span></td>' +
           '<td class="' + (o.side === 'Mua' ? 'buy' : 'sell') + '">' + o.side + '</td>' +
           '<td>' + o.symbol + '</td>' +
-          '<td>' + formatQty(o.qty) + '</td>' +
-          '<td class="col-new">' + formatQty(o.price) + '</td>' +
+          '<td class="col-qty">' + formatQty(o.qty) + '</td>' +
+          '<td class="col-new col-price">' + formatQty(o.price) + '</td>' +
           '<td class="col-new col-fillqty">' + formatQty(o.fillQty) + '</td>' +
           '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatQty(o.avgPx) : '') + '</td>' +
           '<td class="col-new">' + formatQty(o.vwap) + '</td>' +
