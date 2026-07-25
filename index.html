@@ -144,9 +144,13 @@
   .panel { background: var(--bg); border:1px solid var(--border); border-radius:var(--radius-card); overflow:hidden; }
   #panel-order-entry { background: var(--th-bg); }
   .panel-header { display:flex; align-items:center; gap:10px; padding:10px 14px; background: var(--bg); }
-  .panel-title { font-weight:700; color: var(--text-title); font-size:var(--fs-small); }
-  .panel-sub { color: var(--text-dim); font-size:var(--fs-small); cursor:pointer; }
-  .panel-sub.active { color:#fff; font-weight:600; border-bottom:2px solid var(--blue); padding-bottom:6px; }
+  .panel-title { font-weight:700; color: var(--text-title); font-size:var(--fs-small); position:relative; align-self:flex-start; }
+  .panel-sub { color: var(--text-dim); font-size:var(--fs-small); cursor:pointer; align-self:flex-start; }
+  .panel-sub.active { color:#fff; font-weight:600; position:relative; }
+  /* Topline sát mép trên của panel-header (bù lại padding-top:10px) thay vì lửng lơ trong hàng tiêu đề */
+  .panel-title::before, .panel-sub.active::before {
+    content:''; position:absolute; left:0; right:0; top:-10px; height:2px; background: var(--text-title);
+  }
   .panel-expand-btn { margin-left:auto; color:var(--text-dim); font-size:var(--fs-medium); }
   .panel-expand-btn:hover { color:var(--text-title); }
 
@@ -164,7 +168,7 @@
   /* Trạng thái active (đã mở khóa) của nút "Đặt lệnh tổng" — tô đặc để phân biệt rõ với trạng thái inactive (viền nhạt) */
   .tbtn.toggled-active { background: linear-gradient(135deg,var(--blue),var(--blue-dark)); border-color: transparent; color:#fff; }
   #btn-toolbar-done4day:not(.disabled), #btn-toolbar-refresh:not(.disabled),
-  #btn-toolbar-place:not(.disabled):not(.toggled-active), #btn-toolbar-edit:not(.disabled),
+  #btn-toolbar-place:not(.disabled):not(.toggled-active), #btn-toolbar-edit:not(.disabled):not(.toggled-active),
   #btn-toolbar-detail:not(.disabled) { color: var(--text-title); }
   /* Disable — luôn đồng nhất chữ xám mờ, ghi đè màu riêng của .green/.red/.buy khi active */
   .tbtn.disabled { background: var(--grey-btn); border-color: transparent; color: var(--text-dim); cursor:not-allowed; pointer-events:none; }
@@ -272,8 +276,6 @@
   .field input, .field select { background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
         padding:8px 10px; color:var(--text-title); font-size:var(--fs-small); }
   .field input[readonly] { background:rgba(38,129,224,.08); color: var(--blue); border-color: var(--blue); }
-  /* Sửa lệnh con: Tài khoản/Chứng khoán không đổi màu chữ/khung, chỉ hiện trạng thái đang hoạt động (không mờ) */
-  .field input[readonly].field-context-locked { background:var(--input-bg); color: var(--text-title); border-color: var(--border); }
   /* Danh sách gợi ý Tài khoản — lọc động theo ký tự đang nhập (Số tài khoản - Tên tài khoản) */
   .account-suggest-list { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--input-bg);
         border:1px solid var(--border); border-radius:var(--radius-btn); max-height:220px; overflow-y:auto; z-index:20;
@@ -283,8 +285,6 @@
         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .account-suggest-item:hover, .account-suggest-item.active { background:rgba(38,129,224,.15); }
   .account-suggest-item .code { color:var(--blue); font-weight:600; margin-right:6px; }
-  /* Sửa lệnh con: các trường không cho sửa vẫn phải trông "đang hoạt động", khác với lúc khóa toàn bộ khung */
-  .field select.field-context-locked:disabled { opacity:1; cursor:default; background:var(--input-bg); color: var(--text-title); border-color: var(--border); }
   .side-toggle.side-toggle-context span { pointer-events:none; }
   /* Viền khung Đặt lệnh theo trạng thái đang hoạt động (kể cả đang sửa lệnh con):
      xanh lá = đang Mua, đỏ = đang Bán — xem updatePanelBorder() */
@@ -535,21 +535,21 @@
                 <th class="sortable">Side</th>
                 <th class="sortable">Sec</th>
                 <th class="sortable">Qty</th>
-                <th class="col-new sortable">LmtPx</th>
+                <th class="sortable">LmtPx</th>
                 <th class="col-new sortable">Fill Qty</th>
                 <th class="col-new sortable">Avg Px</th>
-                <th class="col-new sortable">Interval VWAP</th>
-                <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% Complete</th>
+                <th class="col-new sortable">VWAP</th>
+                <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% COMP</th>
                 <th class="col-new sortable" title="Tỷ lệ KL đã khớp / KL giao dịch toàn thị trường (TT) của mã CK">% Khớp/TT</th>
                 <th class="col-new sortable">REM BAL</th>
-                <th class="col-new sortable" title="Tổng khối lượng còn lại (chưa khớp) của các lệnh con còn hiệu lực">REM PLACE</th>
+                <th class="col-new sortable" title="Tổng khối lượng còn lại (chưa khớp) của các lệnh con còn hiệu lực">REM PL</th>
+                <th class="col-new sortable">KL hủy</th>
                 <th class="col-new sortable" title="Khối lượng x Giá đặt">Net Value</th>
                 <th class="col-new sortable" title="Giá trị đã khớp của các lệnh con liên quan">Filled Value</th>
                 <th class="col-new sortable">Số hiệu lệnh</th>
                 <th class="sortable">Create Time</th>
-                <th class="col-new sortable">KL hủy</th>
-                <th class="col-new sortable">Trade ID</th>
-                <th class="col-new sortable">Ghi chú</th>
+                <th class="sortable">Trade ID</th>
+                <th class="sortable">Ghi chú</th>
               </tr>
               <tr class="search-row">
                 <th></th>
@@ -663,7 +663,7 @@
                 <th class="sortable">Mã CK</th>
                 <th class="sortable">Thời gian</th>
                 <th class="sortable">Lệnh</th>
-                <th class="sortable">Trạng thái lệnh</th>
+                <th class="sortable">Trạng thái</th>
                 <th class="sortable">Kiểu lệnh</th>
                 <th class="sortable">Người đặt</th>
                 <th class="sortable">KL đặt</th>
@@ -1081,6 +1081,7 @@
       editingChildOriginal = null;
       editingParentRow = null;
       editingParentOriginal = null;
+      document.getElementById('btn-toolbar-edit').classList.remove('toggled-active');
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1122,6 +1123,7 @@
       editingChildOriginal = null;
       editingParentRow = null;
       editingParentOriginal = null;
+      document.getElementById('btn-toolbar-edit').classList.remove('toggled-active');
       setFormEditMode(false);
 
       var tbody = document.getElementById('bbg-tbody');
@@ -1200,9 +1202,14 @@
       editingParentOriginal = { price: tr.dataset.price, qty: tr.dataset.qty };
       document.getElementById('ord-price').value = tr.dataset.price;
       document.getElementById('ord-qty').value = tr.dataset.qty;
+      document.getElementById('btn-toolbar-edit').classList.add('toggled-active');
 
       setFormEditMode(true);
       document.getElementById('ord-price').focus();
+      // Bật cờ "chờ thay thế" sau khi focus: nếu ô Giá đã focus sẵn thì .focus() không phát sinh sự kiện
+      // 'focus' nào, phải tự bật ở đây để gõ số mới là thay thế ngay (không cần Backspace xóa tay).
+      markNumberFieldPendingReplace('ord-price');
+      markNumberFieldPendingReplace('ord-qty');
       validateOrderForm();
     }
 
@@ -1334,6 +1341,101 @@
         e.preventDefault();
         btn.click();
       }
+    });
+
+    // Giá/Khối lượng: giá trị cũ đang hiển thị được coi là "chờ thay thế" — ký tự số đầu tiên gõ vào sau
+    // khi focus sẽ GHI ĐÈ trực tiếp value (tự set + preventDefault), không dựa vào vùng chọn của trình
+    // duyệt. Cách này miễn nhiễm với mọi kiểu tương tác (ô được focus sẵn bằng code khi vào chế độ Sửa
+    // lệnh, click 1 lần, double-click, click-kéo, numpad...) — vốn là nguyên nhân số mới bị chèn thêm
+    // vào số cũ (vd: 24,600 gõ 25000 ra 24,60025000).
+    // Trạng thái đặt ngoài closure để code fill dữ liệu (Sửa lệnh tổng/con) bật lại được cờ "chờ thay thế".
+    // QUAN TRỌNG: không thể chỉ dựa vào sự kiện 'focus' — nếu ô Giá ĐANG focus sẵn thì .focus() gọi lại
+    // KHÔNG phát sinh sự kiện 'focus' nào, cờ không được bật, và số gõ vào bị chèn thêm vào số cũ
+    // (vd: 24,600 gõ 2 ra 24,6002 — phải bấm Backspace xóa tay mới nhập được).
+    var numFieldState = {};
+
+    // Đánh dấu: value đang hiển thị là giá trị CŨ điền sẵn → ký tự số đầu tiên gõ vào sẽ thay thế toàn bộ
+    function markNumberFieldPendingReplace(id) {
+      var st = numFieldState[id];
+      if (!st) return;
+      st.pendingReplace = true;
+      st.userClicks = 0;
+      var el = document.getElementById(id);
+      if (document.activeElement === el) el.select();
+    }
+
+    function enableSelectAllOnFocus(id) {
+      var el = document.getElementById(id);
+      var st = numFieldState[id] = { pendingReplace: false, userClicks: 0 };
+
+      el.addEventListener('focus', function () {
+        st.pendingReplace = true;
+        st.userClicks = 0;
+        el.select();
+      });
+      el.addEventListener('blur', function () { st.pendingReplace = false; st.userClicks = 0; });
+
+      el.addEventListener('mousedown', function (e) {
+        // Double/triple-click là thao tác CHỌN để nhập lại → luôn giữ ý định thay thế toàn bộ
+        // (nếu tính như "click thứ 2" sẽ vô tình tắt cờ và số mới bị chèn vào số cũ).
+        if (e.detail >= 2) { st.pendingReplace = true; st.userClicks = 0; return; }
+        // Chỉ đếm khi ô ĐÃ focus: click đầu tiên (kể cả khi ô được code focus sẵn) vẫn giữ ý định thay
+        // thế toàn bộ; từ click THỨ HAI mới coi là chủ động đặt con trỏ để sửa tại chỗ.
+        if (document.activeElement !== el) return;
+        st.userClicks++;
+        if (st.userClicks >= 2) st.pendingReplace = false;
+      });
+      el.addEventListener('mouseup', function () {
+        // Click đầu tiên làm mất highlight do trình duyệt đặt lại con trỏ → chọn lại cho người dùng thấy
+        // rõ là gõ vào sẽ thay thế toàn bộ (bỏ qua nếu người dùng chủ động kéo chọn một đoạn).
+        if (st.pendingReplace && el.selectionStart === el.selectionEnd) el.select();
+      });
+
+      el.addEventListener('keydown', function (e) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        // Chủ động di chuyển con trỏ → không còn là "nhập mới thay thế toàn bộ"
+        if (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End') {
+          st.pendingReplace = false;
+          return;
+        }
+        if (!st.pendingReplace) return;
+        if (e.key >= '0' && e.key <= '9') {
+          e.preventDefault();
+          st.pendingReplace = false;
+          el.value = e.key;
+          el.setSelectionRange(1, 1);
+          el.dispatchEvent(new Event('input', { bubbles: true })); // để validateOrderForm() chạy như gõ thường
+        } else if (e.key === 'Backspace' || e.key === 'Delete') {
+          e.preventDefault();
+          st.pendingReplace = false;
+          el.value = '';
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (e.key.length === 1) {
+          st.pendingReplace = false;
+        }
+      });
+
+      // Lưới an toàn cuối: với các kiểu nhập KHÔNG đi qua keydown ở trên (bộ gõ tiếng Việt/IME, dán,
+      // tự động điền...), đảm bảo toàn bộ giá trị cũ nằm trong vùng chọn để nội dung mới thay thế hết.
+      el.addEventListener('beforeinput', function (e) {
+        if (!st.pendingReplace) return;
+        st.pendingReplace = false;
+        if (e.inputType && e.inputType.indexOf('insert') === 0) el.setSelectionRange(0, el.value.length);
+      });
+    }
+
+    // Sau khi rời khỏi ô, tự động format số có dấu ngăn cách hàng nghìn (dùng chung formatQty/parseQty)
+    function enableThousandsFormatOnBlur(id) {
+      var el = document.getElementById(id);
+      el.addEventListener('blur', function () {
+        if (!el.value.trim()) return;
+        el.value = formatQty(parseQty(el.value));
+      });
+    }
+
+    ['ord-price', 'ord-qty'].forEach(function (id) {
+      enableSelectAllOnFocus(id);
+      enableThousandsFormatOnBlur(id);
     });
 
     // ===== 1.1: ACK — dùng chung để xác nhận Đặt lệnh / Sửa lệnh / Hủy lệnh, tùy trạng thái đang chọn =====
@@ -1573,6 +1675,7 @@
       document.getElementById('ord-price').value = tr.dataset.price;
       document.getElementById('ord-qty').value = ''; // Khối lượng không tự fill — user tự nhập khối lượng đặt lệnh con
       document.getElementById('ord-orderid').value = tr.dataset.orderId;
+      markNumberFieldPendingReplace('ord-price'); // Giá điền sẵn theo lệnh tổng → gõ số mới là thay thế
       validateOrderForm();
     }
 
@@ -1906,11 +2009,11 @@
         '<td class="col-new col-fillpct">0.00%</td>' +
         '<td class="col-new col-rembal">' + qty + '</td>' +
         '<td class="col-new col-remplace">0</td>' +
+        '<td class="col-new col-klhuy">0</td>' +
         '<td class="col-new col-netvalue">' + netValue + '</td>' +
         '<td class="col-new col-filledvalue">0</td>' +
         '<td class="col-new badge-id">' + orderId + '</td>' +
         '<td>' + time + '</td>' +
-        '<td class="col-new col-klhuy">0</td>' +
         '<td class="col-new"></td>' +
         '<td class="col-new">' + note + '</td>';
 
@@ -2244,6 +2347,11 @@
         return;
       }
       editingChildRow = tr;
+      // Chuyển sang chế độ đặt lệnh con: hủy mọi trạng thái "Đặt lệnh tổng"/"Sửa lệnh tổng" đang bật dở
+      editingParentRow = null;
+      editingParentOriginal = null;
+      document.getElementById('btn-toolbar-place').classList.remove('toggled-active');
+      document.getElementById('btn-toolbar-edit').classList.remove('toggled-active');
       var accountCode = tr.querySelector('.link').textContent.trim();
       var subaccountCode = tr.querySelector('.col-child-subaccount').textContent.trim();
       var symbol = tr.querySelector('.col-child-symbol').textContent.trim();
@@ -2252,7 +2360,7 @@
       var price = tr.querySelector('.col-child-price').textContent.trim();
 
       setSide(side);
-      document.getElementById('ord-account').value = accountCode; // ô nhập tài khoản chỉ hiển thị số tài khoản
+      document.getElementById('ord-account').value = ACCOUNTS[accountCode] || accountCode; // hiện đủ Số tài khoản - Tên tài khoản
       populateSubaccountOptions(accountCode, subaccountCode);
       document.getElementById('ord-symbol').value = symbol;
       document.getElementById('ord-price').value = price;
@@ -2260,6 +2368,9 @@
       document.getElementById('ord-orderid').value = tr.dataset.parentId;
 
       setFormEditMode(true);
+      // Giá/Khối lượng vừa điền sẵn giá trị gốc → gõ số mới là thay thế toàn bộ ngay
+      markNumberFieldPendingReplace('ord-price');
+      markNumberFieldPendingReplace('ord-qty');
 
       // Chỉ enable "Đặt lệnh" khi Giá hoặc Khối lượng thực sự bị thay đổi so với lệnh con gốc
       editingChildOriginal = { price: price, qty: qty };
@@ -2268,23 +2379,17 @@
 
     // Disable toàn bộ field trừ Giá/Khối lượng khi đang sửa 1 lệnh con
     function setFormEditMode(isEditing) {
-      // Tài khoản/Chứng khoán: dùng readonly thay vì disabled — vẫn hiện rõ ràng (không mờ),
-      // chỉ khác trường hợp khóa toàn bộ khung (disabled xám) khi chưa chọn/sửa gì cả.
-      ['ord-account', 'ord-symbol'].forEach(function (id) {
-        var el = document.getElementById(id);
-        el.readOnly = isEditing;
-        if (isEditing) el.disabled = false;
-        el.classList.toggle('field-context-locked', isEditing);
-      });
-      ['ord-subaccount', 'ord-type'].forEach(function (id) {
-        var el = document.getElementById(id);
-        el.disabled = isEditing;
-        el.classList.toggle('field-context-locked', isEditing);
+      // Tài khoản/Tiểu khoản/Chứng khoán: khóa hẳn (disabled) giống hệt trạng thái đặt lệnh con —
+      // chữ xám mờ, hover hiện icon "không được phép" (cursor: not-allowed).
+      ['ord-account', 'ord-subaccount', 'ord-symbol'].forEach(function (id) {
+        document.getElementById(id).disabled = isEditing;
       });
       document.getElementById('side-toggle').classList.toggle('side-toggle-context', isEditing);
       if (isEditing) document.getElementById('side-toggle').classList.remove('disabled-toggle');
-      // Giá/Khối lượng luôn phải sửa được khi vào chế độ Sửa lệnh con, kể cả khi khung đang ở trạng thái khóa
+      // Loại lệnh/Giá/Khối lượng luôn phải sửa được khi vào chế độ Sửa lệnh (con/tổng), kể cả khi khung
+      // đang ở trạng thái khóa — chỉ Tài khoản/Tiểu khoản/Chứng khoán mới bị khóa lại.
       if (isEditing) {
+        document.getElementById('ord-type').disabled = false;
         document.getElementById('ord-price').disabled = false;
         document.getElementById('ord-qty').disabled = false;
       }
@@ -2400,6 +2505,7 @@
       editingChildOriginal = null;
       editingParentRow = null;
       editingParentOriginal = null;
+      document.getElementById('btn-toolbar-edit').classList.remove('toggled-active');
       setFormEditMode(false);
 
       // Sinh dòng lệnh con mới với giá/KL đã sửa
@@ -2554,11 +2660,11 @@
           '<td class="col-new col-fillpct">0.00%</td>' +
           '<td class="col-new col-rembal">0</td>' +
           '<td class="col-new col-remplace">0</td>' +
+          '<td class="col-new col-klhuy">0</td>' +
           '<td class="col-new col-netvalue">' + formatQty(netValue) + '</td>' +
           '<td class="col-new col-filledvalue">0</td>' +
           '<td class="col-new badge-id">' + o.orderId + '</td>' +
           '<td>' + o.createTime + '</td>' +
-          '<td class="col-new col-klhuy">0</td>' +
           '<td class="col-new">' + o.tradeId + '</td>' +
           '<td class="col-new">' + o.note + '</td>' +
           '</tr>';
