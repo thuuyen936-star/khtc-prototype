@@ -13,6 +13,7 @@
     --border: #2B2E33;      /* Stroke (viền) */
     --th-bg: #1B1F27;       /* Table Header */
     --input-bg: #272C37;    /* Input background */
+    --input-disabled-bg: #15171A; /* Input background khi bị khóa */
     --row-bg: #111419;      /* Table Row */
     --block: #111419;       /* Block */
     --hover: #1F2227;       /* Hover */
@@ -40,6 +41,7 @@
     --accent: #2681E0;                        /* accent */
     --accent-ring: rgba(38,129,224,.35);      /* vòng active quanh chấm trạng thái */
     --warning: #FFCC00;                       /* warning */
+    --warning-dark: #C99A00;                  /* warning (gradient dark) */
     --risk-grad: linear-gradient(135deg,#16AABB,#1A7ECB); /* Risk on */
     /* Buttons (gradient) */
     --blue: #2681E0;  --blue-dark: #265CAB;   /* Primary */
@@ -63,6 +65,7 @@
     --border: #E5E5E5;      /* Stroke */
     --th-bg: #FFFFFF;       /* Table Header */
     --input-bg: #EEEEEE;    /* Input background */
+    --input-disabled-bg: #E2E4E9; /* Input background khi bị khóa */
     --row-bg: #F1F2F4;      /* Table Row */
     --block: #F1F2F4;       /* Block */
     --hover: #F0F1F7;       /* Hover */
@@ -83,6 +86,7 @@
     --accent: #2A5DAA;      /* accent */
     --accent-ring: rgba(42,93,170,.35);      /* vòng active quanh chấm trạng thái */
     --warning: #E39725;     /* warning */
+    --warning-dark: #B87418; /* warning (gradient dark) */
     /* Accent / buttons */
     --blue: #2A5DAA;  --blue-dark: #015CA2;
     --buy: #5FC255;   --buy-dark: #238619;   /* Mua */
@@ -124,7 +128,7 @@
   .topbar-right { display:flex; align-items:center; gap:16px; color:var(--text-dim); font-size:var(--fs-medium); }
   .icon-btn { cursor:pointer; }
   .btn-fullscreen { font-size:var(--fs-large); padding:4px 6px; border-radius:var(--radius-sm); border:1px solid var(--border); }
-  .btn-fullscreen:hover { background: var(--grey-btn); color:#fff; }
+  .btn-fullscreen:hover { background: var(--grey-btn); color:var(--text-title); }
   .user-name { color:var(--text); font-size:var(--fs-small); }
   .btn-trade { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; padding:9px 18px;
                border-radius:var(--radius-btn); font-weight:600; font-size:var(--fs-small); cursor:pointer; }
@@ -146,7 +150,7 @@
   .panel-header { display:flex; align-items:center; gap:10px; padding:10px 14px; background: var(--bg); }
   .panel-title { font-weight:700; color: var(--text-title); font-size:var(--fs-small); position:relative; align-self:flex-start; }
   .panel-sub { color: var(--text-dim); font-size:var(--fs-small); cursor:pointer; align-self:flex-start; }
-  .panel-sub.active { color:#fff; font-weight:600; position:relative; }
+  .panel-sub.active { color:var(--text-title); font-weight:600; position:relative; }
   /* Topline sát mép trên của panel-header (bù lại padding-top:10px) thay vì lửng lơ trong hàng tiêu đề */
   .panel-title::before, .panel-sub.active::before {
     content:''; position:absolute; left:0; right:0; top:-10px; height:2px; background: var(--text-title);
@@ -169,7 +173,7 @@
   .tbtn.toggled-active { background: linear-gradient(135deg,var(--blue),var(--blue-dark)); border-color: transparent; color:#fff; }
   #btn-toolbar-done4day:not(.disabled), #btn-toolbar-refresh:not(.disabled),
   #btn-toolbar-place:not(.disabled):not(.toggled-active), #btn-toolbar-edit:not(.disabled):not(.toggled-active),
-  #btn-toolbar-detail:not(.disabled) { color: var(--text-title); }
+  #btn-toolbar-detail:not(.disabled), #btn-toolbar-auto-twap:not(.disabled) { color: var(--text-title); }
   /* Disable — luôn đồng nhất chữ xám mờ, ghi đè màu riêng của .green/.red/.buy khi active */
   .tbtn.disabled { background: var(--grey-btn); border-color: transparent; color: var(--text-dim); cursor:not-allowed; pointer-events:none; }
 
@@ -229,7 +233,7 @@
 
   /* ===== Sort + Search theo cột ===== */
   th.sortable { cursor:pointer; user-select:none; }
-  th.sortable:hover { color:#fff; }
+  th.sortable:hover { color:var(--text-title); }
   .sort-arrow { color: var(--ref); margin-left:4px; }
   .search-row th { padding:4px 8px; background: var(--th-bg); }
   .search-row input { width:100%; background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-sm);
@@ -238,7 +242,7 @@
   .search-row input::placeholder { color: var(--text-disabled); }
 
   /* Field bị disable (đang sửa lệnh con — chỉ cho sửa Giá/Khối lượng) */
-  .field input:disabled, .field select:disabled { opacity:.5; cursor:not-allowed; background:#15171a; }
+  .field input:disabled, .field select:disabled { opacity:.5; cursor:not-allowed; background:var(--input-disabled-bg); }
   .side-toggle.disabled-toggle span { pointer-events:none; opacity:.6; }
 
   th.col-new { color: var(--blue); }
@@ -248,8 +252,13 @@
   .link { color: var(--blue); }
 
   /* Status — badge pill theo design system (Sổ lệnh trong ngày) */
-  .col-status, .col-child-status { display:inline-block; font-family:var(--font-ui); font-size:var(--fs-small);
+  .col-status, .col-child-status, .col-autotwap, .col-child-trader-badge, .col-warn-badge { display:inline-block; font-family:var(--font-ui); font-size:var(--fs-small);
         font-weight:600; padding:4px 10px; border-radius:var(--radius-sm); white-space:nowrap; }
+  .col-autotwap.badge-none { color: var(--text-dim); background: transparent; font-weight:500; }
+  /* Người đặt lệnh "Auto Twap" — màu tím, cùng nền dạng badge như trường Trạng thái */
+  .col-child-trader-badge { color:#C98AFF; background: rgba(201,138,255,.14); }
+  /* % PR / % Khớp-TT vượt mức cảnh báo — vàng warning, cùng nền dạng badge như trường Trạng thái */
+  .col-warn-badge { color: var(--warning); background: rgba(255,204,0,.16); }
   .badge-sent     { color: var(--teal);  background: rgba(26,176,144,.14); }
   .badge-pending  { color: var(--ref);   background: rgba(255,204,0,.14); }
   .badge-queued   { color: var(--blue);  background: rgba(38,129,224,.14); }
@@ -317,7 +326,7 @@
   .modal-box { background: var(--panel-bg); border:1px solid var(--border); border-radius:var(--radius-card);
                width:420px; padding:22px 24px; }
   .modal-title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
-  .modal-title { font-weight:700; font-size:var(--fs-medium); color:#fff; }
+  .modal-title { font-weight:700; font-size:var(--fs-medium); color:var(--text-title); }
   .modal-close { cursor:pointer; color:var(--text-dim); font-size:var(--fs-medium); }
   .modal-radio { display:flex; align-items:center; gap:10px; padding:9px 0; cursor:pointer; font-size:var(--fs-small); }
   .modal-radio input { accent-color: var(--blue); width:15px; height:15px; cursor:pointer; }
@@ -329,6 +338,7 @@
   .modal-btn.confirm { background:linear-gradient(135deg,var(--blue),var(--blue-dark)); color:#fff; }
   .modal-btn.confirm.buy-confirm  { background:linear-gradient(135deg,var(--buy),var(--buy-dark)); }
   .modal-btn.confirm.sell-confirm { background:linear-gradient(135deg,var(--sell),var(--sell-dark)); }
+  .modal-btn.confirm.warning-confirm { background:linear-gradient(135deg,var(--warning),var(--warning-dark)); color:#fff; }
   /* Header màn hình xác nhận đặt/sửa lệnh: Mã CK ở trên, Mua/Bán ở dưới, đều căn giữa */
   .modal-order-header { text-align:center; margin-bottom:14px; }
   .modal-order-symbol { font-size:var(--fs-hero); font-weight:700; color:var(--text-title); }
@@ -339,7 +349,7 @@
   .modal-warn-icon { width:46px; height:46px; border-radius:50%; background:rgba(219,59,64,.15);
                       border:2px solid var(--sell-dark); color:var(--sell); font-size:var(--fs-hero); font-weight:bold;
                       display:flex; align-items:center; justify-content:center; margin:4px auto 14px; }
-  .modal-reject-text { text-align:center; color:#fff; font-size:var(--fs-small); margin-bottom:18px; }
+  .modal-reject-text { text-align:center; color:var(--text-title); font-size:var(--fs-small); margin-bottom:18px; }
   .modal-title.title-danger { color: var(--sell); }
   .modal-cancel-warn-text { text-align:center; color: var(--sell); font-size:var(--fs-small); margin-bottom:16px; line-height:1.5; }
   .modal-field-row { display:flex; flex-direction:column; gap:6px; margin-bottom:14px; }
@@ -355,15 +365,31 @@
   .modal-kv-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:var(--fs-small); }
   .modal-kv-row:last-child { border-bottom:none; }
   .modal-kv-row label { color:var(--text-dim); }
-  .modal-kv-row span { color:#fff; font-weight:600; font-family:var(--font-ui); }
+  .modal-kv-row span { color:var(--text-title); font-weight:600; font-family:var(--font-ui); }
   .modal-verified { display:flex; align-items:center; justify-content:center; gap:6px;
                      color: var(--teal); font-size:var(--fs-small); margin:14px 0 2px; }
+
+  /* ===== Modal: Cài đặt Auto TWAP ===== */
+  .twap-section-title { font-weight:700; color:var(--text-title); font-size:var(--fs-small); margin:14px 0 8px; }
+  .modal-kv-row input[type="time"], .modal-kv-row input[type="number"] {
+    background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
+    padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
+  .twap-session-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0;
+    border-bottom:1px solid var(--border); font-size:var(--fs-small); }
+  .twap-session-row:last-of-type { border-bottom:none; margin-bottom:14px; }
+  .twap-session-row label { display:flex; align-items:center; gap:8px; color:var(--text-title); cursor:pointer; }
+  .twap-session-row input[type="checkbox"] { width:16px; height:16px; cursor:pointer; }
+  .twap-session-row input[type="number"] {
+    background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
+    padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); width:70px; text-align:right; }
+  .twap-session-row input[type="number"]:disabled { opacity:.4; cursor:not-allowed; }
+  .twap-session-row input[type="checkbox"]:disabled + * { opacity:.5; }
 
   /* ===== Modal: Detail (4) ===== */
   .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px 18px;
                   padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-bottom:14px; }
   .detail-grid label { display:block; font-size:var(--fs-small); color:var(--text-dim); margin-bottom:3px; }
-  .detail-grid span { font-family:var(--font-ui); font-weight:600; color:#fff; font-size:var(--fs-small); }
+  .detail-grid span { font-family:var(--font-ui); font-weight:600; color:var(--text-title); font-size:var(--fs-small); }
   .detail-grid-account { grid-template-columns:repeat(2,1fr); border-bottom:none; margin-bottom:0; padding-bottom:10px; }
   .detail-grid-account + .detail-grid { border-top:none; padding-top:10px; }
   .detail-notes { margin-bottom:14px; }
@@ -519,6 +545,7 @@
           <span class="tbtn red" id="btn-toolbar-fixnet" onclick="openFixnetModal()">Huỷ từ Fix Net</span>
           <span class="tbtn" id="btn-toolbar-done4day">Done 4 Day</span>
           <span class="tbtn" id="btn-toolbar-detail" onclick="showSelectedDetail()">Detail</span>
+          <span class="tbtn disabled" id="btn-toolbar-auto-twap" onclick="onAutoTwapButtonClick()">Auto TWAP</span>
           <span class="tbtn" id="btn-toolbar-refresh">Refresh</span>
         </div>
         <div class="table-wrap table-wrap-bbg">
@@ -536,9 +563,11 @@
                 <th class="sortable">Sec</th>
                 <th class="sortable">Qty</th>
                 <th class="sortable">LmtPx</th>
+                <th class="sortable">AUTO TWAP</th>
                 <th class="col-new sortable">Fill Qty</th>
                 <th class="col-new sortable">Avg Px</th>
                 <th class="col-new sortable">VWAP</th>
+                <th class="col-new sortable" title="Chênh lệch Giá khớp TB so với VWAP: AVG PX / VWAP - 1">% PR</th>
                 <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% COMP</th>
                 <th class="col-new sortable" title="Tỷ lệ KL đã khớp / KL giao dịch toàn thị trường (TT) của mã CK">% Khớp/TT</th>
                 <th class="col-new sortable">REM BAL</th>
@@ -577,6 +606,8 @@
                 <th><input oninput="updateTableSearch(this,'bbg',22)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'bbg',23)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'bbg',24)" placeholder=""></th>
+                <th><input oninput="updateTableSearch(this,'bbg',25)" placeholder=""></th>
+                <th><input oninput="updateTableSearch(this,'bbg',26)" placeholder=""></th>
               </tr>
             </thead>
             <tbody id="bbg-tbody"><!-- Dựng động từ PARENT_ORDERS (data.js) qua renderParentOrders() --></tbody>
@@ -611,11 +642,11 @@
           </div>
           <div class="field narrow">
             <label>Chứng khoán</label>
-            <input id="ord-symbol" value="" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();validateOrderForm();" tabindex="5">
+            <input id="ord-symbol" value="" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();applyMarketOrderPrice();validateOrderForm();" tabindex="5">
           </div>
           <div class="field">
             <label>Loại lệnh</label>
-            <select id="ord-type" tabindex="6"><option>Limit</option><option>Market</option></select>
+            <select id="ord-type" onchange="applyMarketOrderPrice();validateOrderForm();" tabindex="6"><option>Limit</option><option>Market</option></select>
           </div>
           <div class="field narrow">
             <label>Giá</label>
@@ -776,7 +807,7 @@
         <span class="modal-close" onclick="closeModal('modal-detail')">✕</span>
       </div>
       <div style="font-size:var(--fs-small);color:var(--text-dim);margin-bottom:6px;">
-        Số hiệu lệnh tổng: <span id="detail-orderid" style="font-family:var(--font-ui);color:#fff;font-weight:600;"></span>
+        Số hiệu lệnh tổng: <span id="detail-orderid" style="font-family:var(--font-ui);color:var(--text-title);font-weight:600;"></span>
       </div>
       <div class="detail-grid detail-grid-account">
         <div><label>Tài khoản</label><span id="detail-account"></span></div>
@@ -785,11 +816,12 @@
       <div class="detail-grid">
         <div><label>Loại lệnh</label><span id="detail-ordertype"></span></div>
         <div><label>Mã CK</label><span id="detail-symbol"></span></div>
-        <div><label>KL chặn</label><span id="detail-qty"></span></div>
-        <div><label>KL khớp</label><span id="detail-fillqty"></span></div>
-        <div><label>KL chờ xử lý (REM PLACE)</label><span id="detail-rembal"></span></div>
-        <div><label>Giá chặn</label><span id="detail-price"></span></div>
-        <div><label>Giá khớp TB</label><span id="detail-avgpx"></span></div>
+        <div><label>Qty</label><span id="detail-qty"></span></div>
+        <div><label>Fill Qty</label><span id="detail-fillqty"></span></div>
+        <div><label>Rem Bal</label><span id="detail-rembal"></span></div>
+        <div><label>Rem Placed</label><span id="detail-remplace"></span></div>
+        <div><label>LMT PX</label><span id="detail-price"></span></div>
+        <div><label>AVG PX</label><span id="detail-avgpx"></span></div>
       </div>
       <div class="detail-notes">
         <div class="detail-note-item"><label>Instructions Bloomberg</label><span id="detail-instructions"></span></div>
@@ -964,6 +996,80 @@
     </div>
   </div>
 
+  <!-- ===== Modal: Cài đặt Auto TWAP ===== -->
+  <div class="modal-overlay" id="modal-auto-twap" hidden>
+    <div class="modal-box" style="max-width:480px;">
+      <div class="modal-title-row">
+        <span class="modal-title">Cài đặt Auto TWAP</span>
+        <span class="modal-close" onclick="closeModal('modal-auto-twap')">✕</span>
+      </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="twap-header-symbol"></div>
+        <div class="modal-order-side" id="twap-header-side"></div>
+      </div>
+
+      <div class="twap-section-title">Cấu hình chia lệnh</div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="time" id="twap-start-time" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="time" id="twap-end-time" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>Tần suất (phút)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
+      </div>
+
+      <div class="twap-section-title">Phân bổ lệnh theo phiên <span style="color:var(--text-dim);font-weight:400;">(REM BAL: <span id="twap-rembal"></span>)</span></div>
+      <div class="twap-session-row">
+        <label><input type="checkbox" id="twap-chk-continuous" onchange="onAutoTwapInputsChanged()"> Khớp lệnh liên tục</label>
+        <input type="number" min="0" max="100" id="twap-pct-continuous" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
+      </div>
+      <div class="twap-session-row">
+        <label><input type="checkbox" id="twap-chk-ato" onchange="onAutoTwapInputsChanged()"> ATO</label>
+        <input type="number" min="0" max="100" id="twap-pct-ato" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
+      </div>
+      <div class="twap-session-row">
+        <label><input type="checkbox" id="twap-chk-atc" onchange="onAutoTwapInputsChanged()"> ATC</label>
+        <input type="number" min="0" max="100" id="twap-pct-atc" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
+      </div>
+
+      <div class="modal-kv-group" style="margin-top:12px;">
+        <div class="modal-kv-row"><label>Số lần đẩy lệnh (phiên liên tục)</label><span id="twap-preview-count">—</span></div>
+        <div class="modal-kv-row"><label>KL mỗi lệnh (phiên liên tục)</label><span id="twap-preview-qty">—</span></div>
+      </div>
+
+      <div id="twap-error" style="color:var(--sell);font-size:var(--fs-small);min-height:16px;margin-top:8px;"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="closeModal('modal-auto-twap')">Hủy</button>
+        <button class="modal-btn confirm" id="twap-confirm-btn" onclick="confirmAutoTwapSetup()">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Xem lại cài đặt Auto TWAP (lệnh đã Hoạt động/Tạm dừng) ===== -->
+  <div class="modal-overlay" id="modal-auto-twap-review" hidden>
+    <div class="modal-box" style="max-width:440px;">
+      <div class="modal-title-row">
+        <span class="modal-title">Auto TWAP</span>
+        <span class="modal-close" onclick="closeModal('modal-auto-twap-review')">✕</span>
+      </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="twapview-header-symbol"></div>
+        <div class="modal-order-side" id="twapview-header-side"></div>
+      </div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Trạng thái</label><span id="twapview-status"></span></div>
+        <div class="modal-kv-row"><label>Thời gian bắt đầu</label><span id="twapview-start"></span></div>
+        <div class="modal-kv-row"><label>Thời gian kết thúc</label><span id="twapview-end"></span></div>
+        <div class="modal-kv-row"><label>Tần suất</label><span id="twapview-interval"></span></div>
+        <div class="modal-kv-row"><label>Phân bổ phiên</label><span id="twapview-sessions"></span></div>
+        <div class="modal-kv-row"><label>Số lệnh theo kế hoạch</label><span id="twapview-planned"></span></div>
+        <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn confirm" onclick="editAutoTwapFromReview()">Sửa</button>
+        <button class="modal-btn confirm" id="twapview-toggle-btn" onclick="toggleAutoTwapPauseResume()">Tạm dừng</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Modal: ACK xác nhận Sửa lệnh tổng (lệnh đang "Chờ xác nhận sửa") ===== -->
   <div class="modal-overlay" id="modal-ack-edit" hidden>
     <div class="modal-box">
@@ -997,6 +1103,11 @@
       ACCOUNT_SUBACCOUNTS[c.accountCode] = c.subaccounts.map(function (s) { return s.code; });
       c.subaccounts.forEach(function (s) { SUBACCOUNTS[s.code] = s.name; });
     });
+    // Giá Trần/Sàn theo Mã CK — dùng để tự fill Giá khi Đặt lệnh tổng chọn Loại lệnh Market
+    var SECURITY_PRICES = {};
+    SECURITIES.forEach(function (s) {
+      SECURITY_PRICES[s.symbol] = { ceiling: s.ceilingPrice, floor: s.floorPrice };
+    });
     var STATUS_BADGE = {
       'Đã gửi': 'badge-sent',
       'Chờ xử lý': 'badge-queued',
@@ -1010,6 +1121,307 @@
       'Khớp 1 phần': 'badge-part',
       'Chờ xác nhận': 'badge-awaiting'
     };
+
+    // Auto TWAP: none (chưa cài đặt) / active (Hoạt động) / paused (Tạm dừng)
+    var AUTOTWAP_LABEL = { active: 'Hoạt động', paused: 'Tạm dừng', cancelled: 'Đã hủy', none: 'None' };
+    var AUTOTWAP_BADGE = { active: 'badge-matched', paused: 'badge-awaiting', cancelled: 'badge-cancelled', none: 'badge-none' };
+    var autoTwapConfigs = {}; // orderId -> { startTime, endTime, interval, sessions:{continuous,ato,atc}, perPushQty, plannedCount }
+    function autoTwapCellHtml(state) {
+      var s = (state === 'active' || state === 'paused' || state === 'cancelled') ? state : 'none';
+      return '<span class="col-autotwap ' + AUTOTWAP_BADGE[s] + '">' + AUTOTWAP_LABEL[s] + '</span>';
+    }
+
+    // Người đặt lệnh "Auto Twap" hiển thị dạng badge tím để dễ phân biệt với lệnh con broker đặt tay
+    function traderCellHtml(trader) {
+      if (trader === 'Auto Twap') return '<span class="col-child-trader-badge">Auto Twap</span>';
+      return trader;
+    }
+
+    // Nút "Auto TWAP" sáng khi: (A. TWAP = none và REM BAL > 0) — mở màn cài đặt mới, HOẶC
+    // (A. TWAP đã cài — active/paused) — mở màn xem lại cài đặt.
+    function refreshAutoTwapButtonState() {
+      var btn = document.getElementById('btn-toolbar-auto-twap');
+      var tr = selectedOrderId ? document.getElementById('row-' + selectedOrderId) : null;
+      if (!tr) { btn.classList.add('disabled'); return; }
+      var autotwap = tr.dataset.autotwap || 'none';
+      var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
+      // Lệnh chưa active (vd "Chờ xác nhận đặt") không cho đặt lệnh con → cũng không cho cài Auto TWAP mới
+      var status = tr.querySelector('.col-status').textContent.trim();
+      var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
+      var enabled = (autotwap === 'none' && remBal > 0 && isActive) || autotwap === 'active' || autotwap === 'paused';
+      btn.classList.toggle('disabled', !enabled);
+    }
+
+    // Bấm "Auto TWAP": chưa cài (none) → mở màn cài đặt mới; đã cài (active/paused) → mở màn xem lại
+    function onAutoTwapButtonClick() {
+      if (isToolbarBtnDisabled('btn-toolbar-auto-twap')) return;
+      var tr = requireSelectedRow();
+      if (!tr) return;
+      var state = tr.dataset.autotwap || 'none';
+      if (state === 'none') openAutoTwapSetup(tr, null);
+      else openAutoTwapReview(tr);
+    }
+
+    // ===== Cài đặt Auto TWAP: chia lệnh theo phiên ATO (9h00-9h15) / Liên tục (9h15-14h30, nghỉ trưa
+    // 11h30-13h00 không tính) / ATC (14h30-14h45). Số lần đẩy lệnh = thời lượng phiên liên tục khả dụng
+    // (đã trừ nghỉ trưa, đã chặn theo khung giờ phiên) / Tần suất; Khối lượng mỗi lệnh làm tròn bội số 100.
+    var TWAP_ATO_START = 9 * 60, TWAP_ATO_END = 9 * 60 + 15;
+    var TWAP_CONT_START = 9 * 60 + 15, TWAP_CONT_END = 14 * 60 + 30;
+    var TWAP_LUNCH_START = 11 * 60 + 30, TWAP_LUNCH_END = 13 * 60;
+    var twapTargetOrderId = null; // lệnh tổng đang cài đặt/xem Auto TWAP trong modal
+
+    function timeToMinutes(hhmm) {
+      if (!hhmm) return null;
+      var p = hhmm.split(':');
+      return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+    }
+
+    function computeTwapPushCount(startMin, endMin, interval) {
+      if (startMin === null || endMin === null || interval <= 0) return 0;
+      // Start time < 9h15 tính từ 9h15; End time > 14h30 tính tới 14h30
+      var clampedStart = Math.max(startMin, TWAP_CONT_START);
+      var clampedEnd = Math.min(endMin, TWAP_CONT_END);
+      var overlapLunch = Math.max(0, Math.min(clampedEnd, TWAP_LUNCH_END) - Math.max(clampedStart, TWAP_LUNCH_START));
+      var availableMinutes = Math.max(0, clampedEnd - clampedStart - overlapLunch);
+      return availableMinutes > 0 ? Math.max(1, Math.floor(availableMinutes / interval)) : 0;
+    }
+
+    // Khối lượng mỗi lệnh (phiên liên tục), làm tròn bội số 100
+    function computeTwapPerPushQty(pushCount, remBal, contPct) {
+      var contTotalQty = Math.round(remBal * contPct / 100 / 100) * 100;
+      var perPushQty = pushCount > 0 ? Math.round((contTotalQty / pushCount) / 100) * 100 : 0;
+      if (perPushQty < 100 && contTotalQty > 0) perPushQty = 100;
+      return perPushQty;
+    }
+
+    // Đếm số lệnh con đã được Auto TWAP tự sinh (trader "Auto Twap") cho 1 lệnh tổng
+    function countAutoTwapGeneratedOrders(orderId) {
+      var rows = document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]');
+      var count = 0;
+      rows.forEach(function (r) {
+        var el = r.querySelector('.col-child-trader');
+        if (el && el.textContent.trim() === 'Auto Twap') count++;
+      });
+      return count;
+    }
+
+    // Bấm "Auto TWAP" khi None: mở màn cài đặt mới. Bấm "Sửa" từ màn xem lại: mở lại màn này, điền sẵn
+    // theo cấu hình cũ (existingConfig).
+    function openAutoTwapSetup(tr, existingConfig) {
+      twapTargetOrderId = tr.dataset.orderId;
+
+      var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('twap-header-symbol').textContent = tr.dataset.symbol;
+      var sideHeaderEl = document.getElementById('twap-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
+
+      var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
+      document.getElementById('twap-rembal').textContent = formatQty(remBal);
+
+      var now = new Date();
+      var defaultStart = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('twap-start-time').value = existingConfig ? existingConfig.startTime : defaultStart;
+      document.getElementById('twap-end-time').value = existingConfig ? existingConfig.endTime : '';
+      document.getElementById('twap-interval').value = existingConfig ? existingConfig.interval : '';
+      ['continuous', 'ato', 'atc'].forEach(function (key) {
+        var pct = existingConfig && existingConfig.sessions[key] ? existingConfig.sessions[key] : null;
+        var chk = document.getElementById('twap-chk-' + key);
+        var pctEl = document.getElementById('twap-pct-' + key);
+        chk.checked = !!pct;
+        chk.disabled = false;
+        pctEl.value = pct || '';
+        pctEl.disabled = !chk.checked;
+      });
+      document.getElementById('twap-error').textContent = '';
+      onAutoTwapInputsChanged();
+      openModal('modal-auto-twap');
+    }
+
+    // Chạy lại mỗi khi người dùng đổi input trong modal: khóa ATO nếu Start Time > 9h15, bật/tắt các ô
+    // % theo checkbox tương ứng, rồi tính lại preview.
+    function onAutoTwapInputsChanged() {
+      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
+      var atoChk = document.getElementById('twap-chk-ato');
+      var atoBlocked = startMin !== null && startMin > TWAP_ATO_END;
+      atoChk.disabled = atoBlocked;
+      if (atoBlocked && atoChk.checked) atoChk.checked = false;
+
+      ['continuous', 'ato', 'atc'].forEach(function (key) {
+        document.getElementById('twap-pct-' + key).disabled = !document.getElementById('twap-chk-' + key).checked;
+      });
+
+      recalcAutoTwapPreview();
+    }
+
+    function recalcAutoTwapPreview() {
+      var countEl = document.getElementById('twap-preview-count');
+      var qtyEl = document.getElementById('twap-preview-qty');
+      var contChecked = document.getElementById('twap-chk-continuous').checked;
+      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
+      var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
+      var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
+
+      if (!contChecked || startMin === null || endMin === null || interval <= 0) {
+        countEl.textContent = '—';
+        qtyEl.textContent = '—';
+        return;
+      }
+
+      var pushCount = computeTwapPushCount(startMin, endMin, interval);
+      var remBal = parseQty(document.getElementById('twap-rembal').textContent);
+      var contPct = parseFloat(document.getElementById('twap-pct-continuous').value) || 0;
+      var perPushQty = computeTwapPerPushQty(pushCount, remBal, contPct);
+
+      countEl.textContent = pushCount || '—';
+      qtyEl.textContent = perPushQty > 0 ? formatQty(perPushQty) : '—';
+    }
+
+    function confirmAutoTwapSetup() {
+      var errorEl = document.getElementById('twap-error');
+      errorEl.textContent = '';
+
+      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
+      var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
+      var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
+
+      if (startMin === null) { errorEl.textContent = 'Vui lòng nhập Thời gian bắt đầu.'; return; }
+      if (endMin === null) { errorEl.textContent = 'Vui lòng nhập Thời gian kết thúc.'; return; }
+      if (endMin <= startMin) { errorEl.textContent = 'Thời gian kết thúc phải sau Thời gian bắt đầu.'; return; }
+      if (interval <= 0) { errorEl.textContent = 'Vui lòng nhập Tần suất (phút) hợp lệ.'; return; }
+
+      var sessionKeys = ['continuous', 'ato', 'atc'];
+      var checkedSessions = sessionKeys.filter(function (key) { return document.getElementById('twap-chk-' + key).checked; });
+      if (!checkedSessions.length) { errorEl.textContent = 'Vui lòng chọn ít nhất 1 phiên phân bổ lệnh.'; return; }
+
+      var totalPct = 0;
+      var sessions = {};
+      for (var i = 0; i < checkedSessions.length; i++) {
+        var key = checkedSessions[i];
+        var pct = parseFloat(document.getElementById('twap-pct-' + key).value) || 0;
+        if (pct <= 0) { errorEl.textContent = 'Vui lòng nhập tỷ trọng % hợp lệ cho các phiên đã chọn.'; return; }
+        sessions[key] = pct;
+        totalPct += pct;
+      }
+      if (Math.round(totalPct) !== 100) {
+        errorEl.textContent = 'Tổng tỷ trọng % các phiên phải bằng 100% (hiện tại: ' + totalPct + '%).';
+        return;
+      }
+
+      var tr = document.getElementById('row-' + twapTargetOrderId);
+      if (!tr) { closeModal('modal-auto-twap'); return; }
+
+      var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
+      var pushCount = sessions.continuous ? computeTwapPushCount(startMin, endMin, interval) : 0;
+      var perPushQty = sessions.continuous ? computeTwapPerPushQty(pushCount, remBal, sessions.continuous) : 0;
+      var plannedCount = pushCount + (sessions.ato ? 1 : 0) + (sessions.atc ? 1 : 0);
+
+      autoTwapConfigs[twapTargetOrderId] = {
+        startTime: document.getElementById('twap-start-time').value,
+        endTime: document.getElementById('twap-end-time').value,
+        interval: interval,
+        sessions: sessions,
+        perPushQty: perPushQty,
+        plannedCount: plannedCount
+      };
+
+      // Lần cài đầu tiên (đang None) mới bật Hoạt động; sửa cấu hình của lệnh đang active/paused thì
+      // giữ nguyên trạng thái hoạt động hiện tại, chỉ cập nhật lại cấu hình.
+      if ((tr.dataset.autotwap || 'none') === 'none') {
+        tr.dataset.autotwap = 'active';
+        var span = tr.querySelector('.col-autotwap');
+        if (span) {
+          span.className = 'col-autotwap ' + AUTOTWAP_BADGE.active;
+          span.textContent = AUTOTWAP_LABEL.active;
+        }
+      }
+      closeModal('modal-auto-twap');
+      refreshAutoTwapButtonState();
+      if (selectedOrderId === twapTargetOrderId) {
+        var status = tr.querySelector('.col-status').textContent.trim();
+        var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
+        if (isActive) refreshQtyRemBalHint(tr);
+        validateOrderForm();
+      }
+    }
+
+    // ===== Xem lại cài đặt Auto TWAP (khi lệnh tổng đã active/paused) =====
+    function openAutoTwapReview(tr) {
+      twapTargetOrderId = tr.dataset.orderId;
+      var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('twapview-header-symbol').textContent = tr.dataset.symbol;
+      var sideHeaderEl = document.getElementById('twapview-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
+
+      var state = tr.dataset.autotwap === 'paused' ? 'paused' : 'active';
+      var statusEl = document.getElementById('twapview-status');
+      statusEl.textContent = AUTOTWAP_LABEL[state];
+      statusEl.style.color = state === 'active' ? 'var(--buy)' : 'var(--warning)';
+
+      var cfg = autoTwapConfigs[twapTargetOrderId] || null;
+      document.getElementById('twapview-start').textContent = cfg ? cfg.startTime : '—';
+      document.getElementById('twapview-end').textContent = cfg ? cfg.endTime : '—';
+      document.getElementById('twapview-interval').textContent = cfg ? (cfg.interval + ' phút') : '—';
+
+      var sessionParts = [];
+      if (cfg) {
+        if (cfg.sessions.continuous) sessionParts.push('Liên tục ' + cfg.sessions.continuous + '%');
+        if (cfg.sessions.ato) sessionParts.push('ATO ' + cfg.sessions.ato + '%');
+        if (cfg.sessions.atc) sessionParts.push('ATC ' + cfg.sessions.atc + '%');
+      }
+      document.getElementById('twapview-sessions').textContent = sessionParts.length ? sessionParts.join(', ') : '—';
+      document.getElementById('twapview-planned').textContent = (cfg ? cfg.plannedCount : 0) + ' lệnh';
+      document.getElementById('twapview-generated').textContent = countAutoTwapGeneratedOrders(twapTargetOrderId) + ' lệnh';
+
+      var toggleBtn = document.getElementById('twapview-toggle-btn');
+      toggleBtn.textContent = state === 'active' ? 'Tạm dừng' : 'Tiếp tục';
+      toggleBtn.classList.remove('buy-confirm', 'warning-confirm');
+      toggleBtn.classList.add(state === 'active' ? 'warning-confirm' : 'buy-confirm');
+
+      openModal('modal-auto-twap-review');
+    }
+
+    function editAutoTwapFromReview() {
+      var tr = document.getElementById('row-' + twapTargetOrderId);
+      if (!tr) return;
+      closeModal('modal-auto-twap-review');
+      openAutoTwapSetup(tr, autoTwapConfigs[twapTargetOrderId] || null);
+    }
+
+    // "Tạm dừng": khóa lại — broker được phép tự đặt lệnh con. "Tiếp tục": khóa Đặt lệnh con lại, đồng
+    // thời tính lại số lệnh Auto TWAP còn phải sinh dựa trên REM BAL hiện tại (khối lượng có thể đã đổi
+    // do lệnh con khớp hoặc do broker đặt tay trong lúc tạm dừng).
+    function toggleAutoTwapPauseResume() {
+      var tr = document.getElementById('row-' + twapTargetOrderId);
+      if (!tr) { closeModal('modal-auto-twap-review'); return; }
+      var current = tr.dataset.autotwap === 'paused' ? 'paused' : 'active';
+      var next = current === 'active' ? 'paused' : 'active';
+
+      if (next === 'active') {
+        var cfg = autoTwapConfigs[twapTargetOrderId];
+        if (cfg && cfg.sessions.continuous && cfg.perPushQty > 0) {
+          var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
+          var contTotalQtyNow = Math.round(remBalNow * cfg.sessions.continuous / 100 / 100) * 100;
+          var remainingContCount = contTotalQtyNow > 0 ? Math.max(1, Math.ceil(contTotalQtyNow / cfg.perPushQty)) : 0;
+          cfg.plannedCount = remainingContCount + (cfg.sessions.ato ? 1 : 0) + (cfg.sessions.atc ? 1 : 0);
+        }
+      }
+
+      tr.dataset.autotwap = next;
+      var span = tr.querySelector('.col-autotwap');
+      span.className = 'col-autotwap ' + AUTOTWAP_BADGE[next];
+      span.textContent = AUTOTWAP_LABEL[next];
+
+      closeModal('modal-auto-twap-review');
+      refreshAutoTwapButtonState();
+      if (selectedOrderId === twapTargetOrderId) {
+        var status = tr.querySelector('.col-status').textContent.trim();
+        var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
+        if (isActive) refreshQtyRemBalHint(tr);
+        validateOrderForm();
+      }
+    }
 
     var selectedOrderId = null; // Mặc định ban đầu: chưa chọn lệnh tổng nào (9.1: chỉ 1 dòng được chọn)
     var editingChildRow = null;    // dòng lệnh con đang được "Sửa" (mục 5)
@@ -1066,8 +1478,6 @@
 
     // ===== 6 & 9: Chọn / Bỏ chọn dòng lệnh tổng =====
     function onRowClick(tr) {
-      var status = tr.querySelector('.col-status').textContent.trim();
-      if (status === 'Đã hủy') return; // Lệnh tổng đã hủy không cho phép check/chọn
       var orderId = tr.dataset.orderId;
       if (selectedOrderId === orderId) {
         clearSelection();
@@ -1106,7 +1516,8 @@
       setChildEntryFieldsLocked(true, !isActive);
       if (isActive) {
         refreshQtyRemBalHint(tr);
-        document.getElementById('ord-type').focus(); // Đặt lệnh con: Mua/Bán, Tài khoản... đã khóa, bắt đầu ở Loại lệnh
+        applyMarketPriceForChildEntry();
+        document.getElementById('ord-price').disabled ? document.getElementById('ord-qty').focus() : document.getElementById('ord-price').focus();
       } else {
         document.getElementById('ord-qty').title = '';
       }
@@ -1159,6 +1570,10 @@
         enabled = { ack: true, reject: false, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
       } else if (status === 'Chờ xử lý') {
         enabled = { ack: false, reject: false, edit: true, fixnet: true, done4day: true, detail: true, refresh: true };
+      } else if (status === 'Đã hủy' || status === 'Khớp hết' || status === 'Từ chối') {
+        // Lệnh đã kết thúc vòng đời (đã hủy / khớp hết / bị từ chối): không còn khối lượng để sửa hay hủy,
+        // chỉ cho xem Detail và Sổ lệnh con.
+        enabled = { ack: false, reject: false, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
       }
       // "Sửa lệnh tổng" enable theo đúng luật của "Hủy từ Fix Net"
       enabled.edit = enabled.fixnet;
@@ -1171,6 +1586,7 @@
       document.getElementById('btn-toolbar-done4day').classList.toggle('disabled', !enabled.done4day);
       document.getElementById('btn-toolbar-detail').classList.toggle('disabled', !enabled.detail || !selectedOrderId);
       document.getElementById('btn-toolbar-refresh').classList.toggle('disabled', !enabled.refresh);
+      refreshAutoTwapButtonState();
       // Nút "Đặt lệnh" enable/disable theo dữ liệu các trường đã điền (xem validateOrderForm)
       validateOrderForm();
     }
@@ -1199,9 +1615,9 @@
       editingChildOriginal = null;
 
       editingParentRow = tr;
-      editingParentOriginal = { price: tr.dataset.price, qty: tr.dataset.qty };
-      document.getElementById('ord-price').value = tr.dataset.price;
+      document.getElementById('ord-price').value = formatPrice(parseQty(tr.dataset.price)); // Giá nhập theo đơn vị nghìn
       document.getElementById('ord-qty').value = tr.dataset.qty;
+      editingParentOriginal = { price: document.getElementById('ord-price').value, qty: tr.dataset.qty };
       document.getElementById('btn-toolbar-edit').classList.add('toggled-active');
 
       setFormEditMode(true);
@@ -1399,7 +1815,7 @@
           return;
         }
         if (!st.pendingReplace) return;
-        if (e.key >= '0' && e.key <= '9') {
+        if ((e.key >= '0' && e.key <= '9') || e.key === '.') {
           e.preventDefault();
           st.pendingReplace = false;
           el.value = e.key;
@@ -1425,18 +1841,17 @@
     }
 
     // Sau khi rời khỏi ô, tự động format số có dấu ngăn cách hàng nghìn (dùng chung formatQty/parseQty)
-    function enableThousandsFormatOnBlur(id) {
+    function enableThousandsFormatOnBlur(id, formatFn, parseFn) {
       var el = document.getElementById(id);
       el.addEventListener('blur', function () {
         if (!el.value.trim()) return;
-        el.value = formatQty(parseQty(el.value));
+        el.value = formatFn(parseFn(el.value));
       });
     }
 
-    ['ord-price', 'ord-qty'].forEach(function (id) {
-      enableSelectAllOnFocus(id);
-      enableThousandsFormatOnBlur(id);
-    });
+    ['ord-price', 'ord-qty'].forEach(function (id) { enableSelectAllOnFocus(id); });
+    enableThousandsFormatOnBlur('ord-price', formatPrice, parsePrice); // đơn vị nghìn (vd 24600 <-> "24.6")
+    enableThousandsFormatOnBlur('ord-qty', formatQty, parseQty);
 
     // ===== 1.1: ACK — dùng chung để xác nhận Đặt lệnh / Sửa lệnh / Hủy lệnh, tùy trạng thái đang chọn =====
     function openAckModal() {
@@ -1460,7 +1875,7 @@
     function openAckEditModal(tr) {
       document.getElementById('ackedit-summary').textContent = tr.dataset.side + ' ' + tr.dataset.symbol + ' ' + tr.dataset.qty;
       document.getElementById('ackedit-symbol').textContent = tr.dataset.symbol;
-      document.getElementById('ackedit-price').textContent = tr.dataset.price;
+      document.getElementById('ackedit-price').textContent = formatPrice(parseQty(tr.dataset.price));
       document.getElementById('ackedit-orderid').textContent = tr.dataset.orderId;
       openModal('modal-ack-edit');
     }
@@ -1469,6 +1884,18 @@
       var tr = requireSelectedRow();
       if (!tr) { closeModal('modal-ack-edit'); return; }
       setOrderStatus(tr, 'Đã gửi');
+      // ACK đồng ý yêu cầu sửa: nếu Auto TWAP đang Hoạt động thì tự động chuyển Tạm dừng — broker cần
+      // xem lại kế hoạch (bấm "Tiếp tục" sẽ tự tính lại theo tham số mới sau khi sửa) trước khi chạy tiếp.
+      if (tr.dataset.autotwap === 'active') {
+        tr.dataset.autotwap = 'paused';
+        var span = tr.querySelector('.col-autotwap');
+        if (span) {
+          span.className = 'col-autotwap ' + AUTOTWAP_BADGE.paused;
+          span.textContent = AUTOTWAP_LABEL.paused;
+        }
+        if (selectedOrderId === tr.dataset.orderId) refreshQtyRemBalHint(tr);
+      }
+      refreshAutoTwapButtonState();
       closeModal('modal-ack-edit');
     }
 
@@ -1515,7 +1942,7 @@
       sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
       sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('fixnet-order-summary').textContent = tr.dataset.qty;
-      document.getElementById('fixnet-price').textContent = tr.dataset.price;
+      document.getElementById('fixnet-price').textContent = formatPrice(parseQty(tr.dataset.price));
       document.getElementById('fixnet-order-id').textContent = tr.dataset.orderId;
       var fixnetBtn = document.getElementById('fixnet-confirm-btn');
       fixnetBtn.textContent = isBuy ? 'Xác nhận hủy Mua' : 'Xác nhận hủy Bán';
@@ -1528,6 +1955,16 @@
       var tr = requireSelectedRow();
       if (!tr) return;
       setOrderStatus(tr, 'Đã hủy');
+      // Lệnh tổng bị hủy: nếu đang cài Auto TWAP (Hoạt động/Tạm dừng) thì chuyển hẳn sang Đã hủy
+      if (tr.dataset.autotwap === 'active' || tr.dataset.autotwap === 'paused') {
+        tr.dataset.autotwap = 'cancelled';
+        var span = tr.querySelector('.col-autotwap');
+        if (span) {
+          span.className = 'col-autotwap ' + AUTOTWAP_BADGE.cancelled;
+          span.textContent = AUTOTWAP_LABEL.cancelled;
+        }
+        refreshAutoTwapButtonState();
+      }
       cancelChildOrders(selectedOrderId);
       closeModal('modal-fixnet');
     }
@@ -1660,6 +2097,8 @@
       if (qtyValid && selectedOrderId) {
         var parentTr = document.getElementById('row-' + selectedOrderId);
         if (parentTr && parseQty(qty) > parseQty(parentTr.dataset.qty)) qtyValid = false;
+        // Auto TWAP đang Hoạt động → broker không được tự đặt lệnh con
+        if (parentTr && parentTr.dataset.autotwap === 'active') qtyValid = false;
       }
 
       btn.disabled = !fieldsFilled || !qtyValid;
@@ -1672,7 +2111,7 @@
       populateSubaccountOptions(tr.dataset.account, tr.dataset.subaccount);
       document.getElementById('ord-symbol').value = tr.dataset.symbol;
       document.getElementById('ord-type').value = (tr.dataset.ordertype === 'LO') ? 'Limit' : 'Market';
-      document.getElementById('ord-price').value = tr.dataset.price;
+      document.getElementById('ord-price').value = formatPrice(parseQty(tr.dataset.price));
       document.getElementById('ord-qty').value = ''; // Khối lượng không tự fill — user tự nhập khối lượng đặt lệnh con
       document.getElementById('ord-orderid').value = tr.dataset.orderId;
       markNumberFieldPendingReplace('ord-price'); // Giá điền sẵn theo lệnh tổng → gõ số mới là thay thế
@@ -1688,22 +2127,41 @@
         document.getElementById(id).disabled = locked;
       });
       document.getElementById('side-toggle').classList.toggle('disabled-toggle', locked);
+      // Loại lệnh trong Đặt lệnh con luôn nhận theo lệnh tổng, không cho sửa
+      document.getElementById('ord-type').disabled = true;
       var groupLocked = locked && !!readOnlyAll;
-      ['ord-type', 'ord-price', 'ord-qty'].forEach(function (id) {
+      ['ord-price', 'ord-qty'].forEach(function (id) {
         document.getElementById(id).disabled = groupLocked;
       });
     }
 
-    // REM BAL = 0 → không còn gì để đặt thêm lệnh con: khóa cả nhóm Loại lệnh/Giá/Khối lượng + hiện
-    // tooltip khi hover vào Khối lượng (Loại lệnh/Giá/Khối lượng luôn cùng enable hoặc cùng disable).
+    // REM BAL = 0 → không còn gì để đặt thêm lệnh con: khóa cả nhóm Giá/Khối lượng + hiện
+    // tooltip khi hover vào Khối lượng (Loại lệnh luôn khóa sẵn — xem setChildEntryFieldsLocked).
     function refreshQtyRemBalHint(tr) {
       var qtyEl = document.getElementById('ord-qty');
       var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
-      var lockGroup = remBalNow <= 0;
-      ['ord-type', 'ord-price', 'ord-qty'].forEach(function (id) {
+      var twapActive = tr.dataset.autotwap === 'active';
+      var lockGroup = remBalNow <= 0 || twapActive;
+      ['ord-price', 'ord-qty'].forEach(function (id) {
         document.getElementById(id).disabled = lockGroup;
       });
-      qtyEl.title = lockGroup ? 'REM BAL = 0 (không thể đặt thêm lệnh con)' : '';
+      qtyEl.title = twapActive ? 'Auto TWAP đang Hoạt động — không thể tự đặt lệnh con (tạm dừng Auto TWAP để đặt tay)'
+        : (lockGroup ? 'REM BAL = 0 (không thể đặt thêm lệnh con)' : '');
+    }
+
+    // Đặt lệnh con: Loại lệnh kế thừa từ lệnh tổng — nếu là Market thì Giá tự fill Trần (Mua)/Sàn (Bán)
+    // và khóa lại; nếu Giá đã bị khóa vì lý do khác (lệnh tổng inactive/REM BAL=0) thì không đụng vào.
+    function applyMarketPriceForChildEntry() {
+      var priceEl = document.getElementById('ord-price');
+      if (priceEl.disabled) return;
+      if (document.getElementById('ord-type').value !== 'Market') return;
+      var symbol = document.getElementById('ord-symbol').value.trim().toUpperCase();
+      var prices = SECURITY_PRICES[symbol];
+      if (prices) {
+        var side = document.getElementById('side-toggle').dataset.side;
+        priceEl.value = formatPrice(side === 'Mua' ? prices.ceiling : prices.floor);
+      }
+      priceEl.disabled = true;
     }
 
     // ===== 10: Khi không có dòng được chọn → reset, cho phép nhập mới =====
@@ -1717,6 +2175,7 @@
       document.getElementById('ord-qty').title = '';
       document.getElementById('ord-orderid').value = '';
       document.getElementById('ord-note').value = '';
+      applyMarketOrderPrice(); // Loại lệnh có thể vẫn đang là Market từ trước → khóa lại Giá cho đúng
       validateOrderForm();
     }
 
@@ -1739,7 +2198,28 @@
       box.dataset.side = side;
       buyEl.className = (side === 'Mua') ? 'side-active-buy' : 'side-inactive';
       sellEl.className = (side === 'Bán') ? 'side-active-sell' : 'side-inactive';
+      applyMarketOrderPrice();
       updatePanelBorder();
+    }
+
+    // Đặt lệnh tổng + Loại lệnh Market: Giá tự fill Trần (Mua) / Sàn (Bán) theo Mã CK, khóa không cho sửa.
+    // Không áp dụng cho Đặt/Sửa lệnh con hay Sửa lệnh tổng — chỉ khi đang ở chế độ "Đặt lệnh tổng" mới.
+    function applyMarketOrderPrice() {
+      var priceEl = document.getElementById('ord-price');
+      var isPlacingParent = document.getElementById('btn-toolbar-place').classList.contains('toggled-active');
+      var isMarket = document.getElementById('ord-type').value === 'Market';
+      if (!isPlacingParent || !isMarket) {
+        priceEl.disabled = false;
+        return;
+      }
+      var symbol = document.getElementById('ord-symbol').value.trim().toUpperCase();
+      var prices = SECURITY_PRICES[symbol];
+      if (prices) {
+        var side = document.getElementById('side-toggle').dataset.side;
+        priceEl.value = formatPrice(side === 'Mua' ? prices.ceiling : prices.floor);
+      }
+      priceEl.disabled = true;
+      validateOrderForm();
     }
 
     // ===== 8: Đồng bộ / lọc "Sổ lệnh con trong ngày" theo lệnh tổng đang chọn + search theo cột (mục 2) =====
@@ -1908,7 +2388,9 @@
       var account = document.getElementById('ord-account').value.trim();
       var subaccount = document.getElementById('ord-subaccount').value.trim();
       var symbol = document.getElementById('ord-symbol').value.trim();
-      var price = document.getElementById('ord-price').value.trim();
+      var priceInput = document.getElementById('ord-price').value.trim();
+      // Ô Giá nhập theo đơn vị nghìn (vd "24.6") → quy đổi về giá thật (24,600) để lưu/tính toán nội bộ
+      var price = priceInput ? formatQty(parsePrice(priceInput)) : '';
       var qty = document.getElementById('ord-qty').value.trim();
 
       if (!account || !subaccount || !symbol || !price || !qty) {
@@ -1947,7 +2429,7 @@
       sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('confirm-place-account').textContent = data.account;
       document.getElementById('confirm-place-subaccount').textContent = subaccountLabel;
-      document.getElementById('confirm-place-price').textContent = data.price;
+      document.getElementById('confirm-place-price').textContent = formatPrice(parseQty(data.price));
       document.getElementById('confirm-place-qty').textContent = data.qty;
       document.getElementById('confirm-place-note').textContent = data.note || '—';
       var placeConfirmBtn = document.getElementById('confirm-place-btn');
@@ -1990,6 +2472,7 @@
       tr.dataset.marketvol = '1,000,000'; // KL giao dịch toàn thị trường (demo) — dùng để tính % Khớp
       tr.dataset.ordertype = 'LO';
       tr.dataset.route = 'Broker';
+      tr.dataset.autotwap = 'none';
 
       var sideClass = side === 'Mua' ? 'buy' : 'sell';
       var netValue = formatQty(parseQty(qty) * parseQty(price));
@@ -2001,10 +2484,12 @@
         '<td><span class="col-status badge-pending">Chờ xác nhận đặt</span></td>' +
         '<td class="' + sideClass + '">' + side + '</td>' +
         '<td>' + symbol + '</td><td class="col-qty">' + qty + '</td>' +
-        '<td class="col-new col-price">' + price + '</td>' +
+        '<td class="col-new col-price">' + formatPrice(parseQty(price)) + '</td>' +
+        '<td class="col-new">' + autoTwapCellHtml('none') + '</td>' +
         '<td class="col-new col-fillqty">0</td>' +
         '<td class="col-new col-avgpx"></td>' +
-        '<td class="col-new">' + price + '</td>' +
+        '<td class="col-new">' + formatPrice(parseQty(price)) + '</td>' +
+        '<td class="col-new col-percentpr"></td>' +
         '<td class="col-new col-completepct">0.00%</td>' +
         '<td class="col-new col-fillpct">0.00%</td>' +
         '<td class="col-new col-rembal">' + qty + '</td>' +
@@ -2015,7 +2500,7 @@
         '<td class="col-new badge-id">' + orderId + '</td>' +
         '<td>' + time + '</td>' +
         '<td class="col-new"></td>' +
-        '<td class="col-new">' + note + '</td>';
+        '<td class="col-new col-note">' + note + '</td>';
 
       document.getElementById('bbg-tbody').appendChild(tr);
       bindRowClick(tr);
@@ -2035,7 +2520,7 @@
       document.querySelectorAll('#child-tbody tr[data-parent-id="' + parentTr.dataset.orderId + '"]').forEach(function (r) {
         if (r.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') return;
         var qty = parseQty(r.querySelector('.col-child-qty').textContent);
-        var price = parseQty(r.querySelector('.col-child-price').textContent);
+        var price = parseQty(r.dataset.price);
         sumValue += qty * price;
         sumQty += qty;
       });
@@ -2067,9 +2552,9 @@
       sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
       sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
       document.getElementById('childplace-qty').textContent = formatQty(childQty);
-      document.getElementById('childplace-price').textContent = formatQty(childPrice);
+      document.getElementById('childplace-price').textContent = formatPrice(childPrice);
       document.getElementById('childplace-value').textContent = formatQty(value);
-      document.getElementById('childplace-avgpx').textContent = formatQty(Math.round(avgPx));
+      document.getElementById('childplace-avgpx').textContent = formatPrice(Math.round(avgPx));
       var childConfirmBtn = document.getElementById('childplace-confirm-btn');
       childConfirmBtn.textContent = isBuy ? 'Xác nhận đặt Mua' : 'Xác nhận đặt Bán';
       childConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
@@ -2102,18 +2587,24 @@
       tr.className = 'row-new-flash';
       tr.dataset.parentId = parentTr.dataset.orderId;
       tr.dataset.childId = generateChildId();
+      tr.dataset.price = price; // Giá thật (VND) — nguồn dữ liệu cho tính toán, khác với ô hiển thị (đơn vị nghìn)
       tr.innerHTML =
         '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
         '<span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
         '<span class="tbtn red" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +
         '<td class="link">' + accountCode + '</td><td class="col-child-subaccount">' + subaccountCode + '</td>' +
         '<td class="col-child-symbol">' + symbol + '</td><td class="col-child-time">' + time + '</td>' +
-        '<td class="' + sideClass + '">' + sideLabel + '</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td>ADMINHN</td>' +
-        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + price + '</td><td class="col-child-matchqty">0</td><td class="col-child-remain">' + qty + '</td>';
+        '<td class="' + sideClass + '">' + sideLabel + '</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td class="col-child-trader">' + traderCellHtml('ADMINHN') + '</td>' +
+        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + formatPrice(parseQty(price)) + '</td><td class="col-child-matchqty">0</td><td class="col-child-remain">' + qty + '</td>';
 
       document.getElementById('child-tbody').appendChild(tr);
       filterChildOrders(selectedOrderId);
       updateOrderAggregates(parentTr.dataset.orderId); // đã tự tính lại REM BAL/REM PLACE/Fill Qty ở đây
+
+      // Lệnh tổng "Chờ xử lý" đã có lệnh con đầu tiên → chuyển sang "Đã gửi"
+      if (parentTr.querySelector('.col-status').textContent.trim() === 'Chờ xử lý') {
+        setOrderStatus(parentTr, 'Đã gửi');
+      }
 
       // Kiểm tra khớp lệnh: chỉ áp dụng cho lệnh Mua
       if (side === 'Mua') {
@@ -2134,7 +2625,7 @@
         var sideText = sideEl ? sideEl.textContent.trim() : '';
         if (sideText.indexOf('Bán') === -1) continue;
         var rSymbol  = r.querySelector('.col-child-symbol')  ? r.querySelector('.col-child-symbol').textContent.trim()  : '';
-        var rPrice   = r.querySelector('.col-child-price')   ? r.querySelector('.col-child-price').textContent.trim()   : '';
+        var rPrice   = r.dataset.price || '';
         var rQty     = r.querySelector('.col-child-qty')     ? r.querySelector('.col-child-qty').textContent.trim()     : '';
         var rAccount = r.querySelector('.link')              ? r.querySelector('.link').textContent.trim()              : '';
         if (rSymbol !== symbol) continue;
@@ -2161,8 +2652,37 @@
       return n.toLocaleString('en-US');
     }
 
+    // Giá hiển thị/nhập theo đơn vị nghìn đồng (Giá thật 24600 <-> hiển thị/nhập "24.6")
+    function formatPrice(n) {
+      return (n / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    function parsePrice(text) {
+      return Math.round((parseFloat(String(text).replace(/,/g, '')) || 0) * 1000);
+    }
+
+    // Mức cảnh báo: |% PR| > 1% hoặc % Khớp/TT > 20% thì đổi màu vàng warning, nền dạng badge như Trạng thái
+    var PERCENTPR_WARN_THRESHOLD = 1;
+    var FILLPCT_WARN_THRESHOLD = 20;
+    function warnBadgeHtml(text, exceeds) {
+      return exceeds ? '<span class="col-warn-badge">' + text + '</span>' : text;
+    }
+
+    // % PR = AVG PX / VWAP - 1 — chỉ hiện khi đã có khối lượng khớp (giống điều kiện hiện Avg Px)
+    function percentPrText(avgPx, vwap, fillQty) {
+      if (!(fillQty > 0) || !(vwap > 0)) return '';
+      var pct = (avgPx / vwap - 1) * 100;
+      return warnBadgeHtml(pct.toFixed(2) + '%', Math.abs(pct) > PERCENTPR_WARN_THRESHOLD);
+    }
+
+    // % Khớp/TT = KL đã khớp / KL giao dịch toàn thị trường
+    function fillPctText(matched, marketVol) {
+      var pct = marketVol > 0 ? (matched / marketVol * 100) : 0;
+      return warnBadgeHtml(pct.toFixed(2) + '%', pct > FILLPCT_WARN_THRESHOLD);
+    }
+
     // KL hủy / REM PLACE / Fill Qty / REM BAL (và các trường phái sinh) đều tổng hợp trực tiếp
-    // từ các lệnh con còn hiệu lực (bỏ qua "Đã hủy") — luôn khớp số với Sổ lệnh con trong ngày.
+    // từ các lệnh con còn hiệu lực (bỏ qua "Đã hủy"/"Đã sửa") — luôn khớp số với Sổ lệnh con trong ngày.
     function updateOrderAggregates(orderId) {
       var tr = document.getElementById('row-' + orderId);
       if (!tr) return;
@@ -2171,10 +2691,14 @@
         var qty = parseQty(r.querySelector('.col-child-qty').textContent);
         var matchEl = r.querySelector('.col-child-matchqty');
         var matchQty = matchEl ? parseQty(matchEl.textContent) : 0;
-        // Lệnh con đã hủy vẫn cộng phần đã khớp (trước khi hủy) vào lệnh tổng — hủy chỉ hủy phần chưa khớp.
+        // Phần đã khớp của mọi lệnh con (kể cả đã hủy/đã sửa) đều là khớp thật → luôn cộng vào Fill Qty.
         matched += matchQty;
-        if (r.querySelector('.col-child-status').textContent.trim() === 'Đã hủy') {
-          cancelled += qty;
+        var childStatus = r.querySelector('.col-child-status').textContent.trim();
+        if (childStatus === 'Đã hủy') {
+          cancelled += (qty - matchQty); // Hủy chỉ hủy được phần CHƯA khớp
+        } else if (childStatus === 'Đã sửa') {
+          // Dòng gốc đã được thay bằng lệnh con mới → phần chưa khớp không còn hiệu lực,
+          // không tính vào REM PLACE (nếu tính sẽ trùng với dòng lệnh con mới sinh ra).
         } else {
           remainSum += (qty - matchQty); // KL còn lại của từng lệnh con còn hiệu lực
         }
@@ -2199,7 +2723,7 @@
 
       var marketVol = parseQty(tr.dataset.marketvol);
       var fillpctTd = tr.querySelector('.col-fillpct');
-      if (fillpctTd) fillpctTd.textContent = (marketVol > 0 ? (matched / marketVol * 100).toFixed(2) : '0.00') + '%';
+      if (fillpctTd) fillpctTd.innerHTML = fillPctText(matched, marketVol);
 
       var avgPx = parseQty(tr.dataset.avgpx);
       var filledValueTd = tr.querySelector('.col-filledvalue');
@@ -2207,7 +2731,11 @@
 
       // Chưa có khối lượng khớp → để trống Giá khớp TB (Avg Px), không hiện "0"
       var avgpxTd = tr.querySelector('.col-avgpx');
-      if (avgpxTd) avgpxTd.textContent = matched > 0 ? formatQty(avgPx) : '';
+      if (avgpxTd) avgpxTd.textContent = matched > 0 ? formatPrice(avgPx) : '';
+
+      var vwap = parseQty(tr.dataset.vwap);
+      var percentprTd = tr.querySelector('.col-percentpr');
+      if (percentprTd) percentprTd.innerHTML = percentPrText(avgPx, vwap, matched);
 
       // Chỉ tự chuyển trạng thái giữa các mốc Đã gửi/Khớp 1 phần/Khớp hết — không đụng tới
       // Chờ xác nhận đặt / Chờ xác nhận sửa / Chờ xác nhận hủy / Chờ xử lý / Đã hủy (trạng thái vòng đời, không phải trạng thái khớp lệnh).
@@ -2218,8 +2746,8 @@
         if (newStatus !== curStatus) setOrderStatus(tr, newStatus);
       }
 
-      // Lệnh tổng đang chọn vừa đổi REM BAL → cập nhật lại tooltip/khóa Khối lượng nếu cần
-      if (orderId === selectedOrderId) { refreshQtyRemBalHint(tr); updatePanelBorder(); }
+      // Lệnh tổng đang chọn vừa đổi REM BAL → cập nhật lại tooltip/khóa Khối lượng + nút Auto TWAP nếu cần
+      if (orderId === selectedOrderId) { refreshQtyRemBalHint(tr); updatePanelBorder(); refreshAutoTwapButtonState(); }
     }
 
     function generateOrderId() {
@@ -2245,12 +2773,13 @@
       document.getElementById('detail-orderid').textContent = orderId;
       document.getElementById('detail-account').textContent = ACCOUNTS[tr.dataset.account] || tr.dataset.account;
       document.getElementById('detail-qty').textContent = tr.dataset.qty;
-      document.getElementById('detail-price').textContent = tr.dataset.price;
+      document.getElementById('detail-price').textContent = formatPrice(parseQty(tr.dataset.price));
       document.getElementById('detail-avgpx').textContent = tr.querySelector('.col-avgpx').textContent;
       document.getElementById('detail-subaccount').textContent = SUBACCOUNTS[tr.dataset.subaccount] || tr.dataset.subaccount;
       document.getElementById('detail-symbol').textContent = tr.dataset.symbol;
       document.getElementById('detail-ordertype').textContent = tr.dataset.ordertype || '';
-      document.getElementById('detail-rembal').textContent = tr.querySelector('.col-remplace').textContent;
+      document.getElementById('detail-rembal').textContent = tr.querySelector('.col-rembal').textContent;
+      document.getElementById('detail-remplace').textContent = tr.querySelector('.col-remplace').textContent;
       document.getElementById('detail-fillqty').textContent = tr.dataset.fillqty || '0';
       document.getElementById('detail-instructions').textContent = tr.dataset.instructions || '';
       document.getElementById('detail-note').textContent = tr.dataset.note || '';
@@ -2284,7 +2813,11 @@
       document.getElementById('detail-note').textContent = value;
       if (detailOrderId) {
         var tr = document.getElementById('row-' + detailOrderId);
-        if (tr) tr.dataset.note = value;
+        if (tr) {
+          tr.dataset.note = value;
+          var noteTd = tr.querySelector('.col-note');
+          if (noteTd) noteTd.textContent = value;
+        }
       }
       exitDetailNoteEditView();
     }
@@ -2318,7 +2851,7 @@
         var time = r.querySelector('.col-child-time').textContent.trim();
         var placedQty = r.querySelector('.col-child-qty').textContent.trim();
         var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
-        var price = r.querySelector('.col-child-price').textContent.trim();
+        var price = formatPrice(parseQty(r.dataset.price));
         var remain = r.querySelector('.col-child-remain').textContent.trim();
         var status = r.querySelector('.col-child-status').textContent.trim();
         rows += '<tr><td>' + time + '</td><td class="mono">' + placedQty + '</td><td class="mono">' + matchQty + '</td><td class="mono">' +
@@ -2357,13 +2890,12 @@
       var symbol = tr.querySelector('.col-child-symbol').textContent.trim();
       var side = tr.querySelector('.buy, .sell').textContent.trim().indexOf('Mua') === 0 ? 'Mua' : 'Bán';
       var qty = tr.querySelector('.col-child-qty').textContent.trim();
-      var price = tr.querySelector('.col-child-price').textContent.trim();
 
       setSide(side);
       document.getElementById('ord-account').value = ACCOUNTS[accountCode] || accountCode; // hiện đủ Số tài khoản - Tên tài khoản
       populateSubaccountOptions(accountCode, subaccountCode);
       document.getElementById('ord-symbol').value = symbol;
-      document.getElementById('ord-price').value = price;
+      document.getElementById('ord-price').value = formatPrice(parseQty(tr.dataset.price)); // Giá nhập theo đơn vị nghìn
       document.getElementById('ord-qty').value = qty;
       document.getElementById('ord-orderid').value = tr.dataset.parentId;
 
@@ -2373,7 +2905,7 @@
       markNumberFieldPendingReplace('ord-qty');
 
       // Chỉ enable "Đặt lệnh" khi Giá hoặc Khối lượng thực sự bị thay đổi so với lệnh con gốc
-      editingChildOriginal = { price: price, qty: qty };
+      editingChildOriginal = { price: document.getElementById('ord-price').value, qty: qty };
       validateOrderForm();
     }
 
@@ -2476,12 +3008,14 @@
     }
 
     function saveChildOrderEdit() {
-      var price = document.getElementById('ord-price').value.trim();
+      var priceInput = document.getElementById('ord-price').value.trim();
       var qty = document.getElementById('ord-qty').value.trim();
-      if (!price || !qty) {
+      if (!priceInput || !qty) {
         alert('Vui lòng nhập đầy đủ Giá và Khối lượng.');
         return;
       }
+      // Ô Giá nhập theo đơn vị nghìn → quy đổi về giá thật trước khi lưu/tạo lệnh con
+      var price = formatQty(parsePrice(priceInput));
       var tr = editingChildRow;
       var parentTr = document.getElementById('row-' + tr.dataset.parentId);
       if (parseQty(qty) > parseQty(parentTr.dataset.qty)) {
@@ -2550,15 +3084,17 @@
     }
 
     function saveParentOrderEdit() {
-      var price = document.getElementById('ord-price').value.trim();
+      var priceInput = document.getElementById('ord-price').value.trim();
       var qty = document.getElementById('ord-qty').value.trim();
       var tr = editingParentRow;
-      if (!tr || !price || !qty) return;
+      if (!tr || !priceInput || !qty) return;
+      // Ô Giá nhập theo đơn vị nghìn → quy đổi về giá thật trước khi lưu
+      var price = formatQty(parsePrice(priceInput));
 
       tr.dataset.price = price;
       tr.dataset.qty = qty;
       var priceTd = tr.querySelector('.col-price');
-      if (priceTd) priceTd.textContent = price;
+      if (priceTd) priceTd.textContent = formatPrice(parseQty(price));
       var qtyTd = tr.querySelector('.col-qty');
       if (qtyTd) qtyTd.textContent = qty;
       var netvalueTd = tr.querySelector('.col-netvalue');
@@ -2594,7 +3130,7 @@
       var isBuy = sideText.indexOf('Mua') === 0;
       var symbol = tr.querySelector('.col-child-symbol').textContent.trim();
       var qty = tr.querySelector('.col-child-qty').textContent.trim();
-      var price = tr.querySelector('.col-child-price').textContent.trim();
+      var price = formatPrice(parseQty(tr.dataset.price));
 
       document.getElementById('cancelchild-summary').textContent = sideText + ' ' + symbol + ' ' + qty;
       document.getElementById('cancelchild-header-symbol').textContent = symbol;
@@ -2641,7 +3177,8 @@
           'data-symbol="' + o.symbol + '" data-price="' + formatQty(o.price) + '" data-qty="' + formatQty(o.qty) + '" ' +
           'data-fillqty="' + formatQty(o.fillQty) + '" data-avgpx="' + formatQty(o.avgPx) + '" data-vwap="' + formatQty(o.vwap) + '" ' +
           'data-instructions="' + o.instructions + '" data-note="' + o.note + '" data-marketvol="' + formatQty(o.marketVol) + '" ' +
-          'data-ordertype="' + o.orderType + '" data-route="' + o.route + '">' +
+          'data-ordertype="' + o.orderType + '" data-route="' + o.route + '" ' +
+          'data-autotwap="' + (o.autoTwap || 'none') + '">' +
           '<td><span class="status-dot"></span></td>' +
           '<td>' + o.route + '</td>' +
           '<td class="col-checkpx">' + o.checkPx + '</td>' +
@@ -2652,10 +3189,12 @@
           '<td class="' + (o.side === 'Mua' ? 'buy' : 'sell') + '">' + o.side + '</td>' +
           '<td>' + o.symbol + '</td>' +
           '<td class="col-qty">' + formatQty(o.qty) + '</td>' +
-          '<td class="col-new col-price">' + formatQty(o.price) + '</td>' +
+          '<td class="col-new col-price">' + formatPrice(o.price) + '</td>' +
+          '<td class="col-new">' + autoTwapCellHtml(o.autoTwap) + '</td>' +
           '<td class="col-new col-fillqty">' + formatQty(o.fillQty) + '</td>' +
-          '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatQty(o.avgPx) : '') + '</td>' +
-          '<td class="col-new">' + formatQty(o.vwap) + '</td>' +
+          '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatPrice(o.avgPx) : '') + '</td>' +
+          '<td class="col-new">' + formatPrice(o.vwap) + '</td>' +
+          '<td class="col-new col-percentpr">' + percentPrText(o.avgPx, o.vwap, o.fillQty) + '</td>' +
           '<td class="col-new col-completepct">0.00%</td>' +
           '<td class="col-new col-fillpct">0.00%</td>' +
           '<td class="col-new col-rembal">0</td>' +
@@ -2666,7 +3205,7 @@
           '<td class="col-new badge-id">' + o.orderId + '</td>' +
           '<td>' + o.createTime + '</td>' +
           '<td class="col-new">' + o.tradeId + '</td>' +
-          '<td class="col-new">' + o.note + '</td>' +
+          '<td class="col-new col-note">' + o.note + '</td>' +
           '</tr>';
       }).join('');
       // % Complete/% Khớp/TT/REM PLACE/Fill Qty/Filled Value/KL đã đặt/KL hủy tính lại đầy đủ ngay sau
@@ -2681,7 +3220,7 @@
         var sideLabel = c.side + ' thông thường';
         var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
         var disabledCls = (c.status === 'Đã hủy' || c.status === 'Chờ xác nhận' || c.status === 'Khớp hết') ? ' disabled' : '';
-        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '">' +
+        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '">' +
           '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
           '<span class="tbtn' + disabledCls + '" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
           '<span class="tbtn red' + disabledCls + '" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +
@@ -2692,9 +3231,9 @@
           '<td class="' + sideClass + '">' + sideLabel + '</td>' +
           '<td><span class="col-child-status ' + (STATUS_BADGE[c.status] || '') + '">' + c.status + '</span></td>' +
           '<td>' + c.orderType + '</td>' +
-          '<td>' + c.trader + '</td>' +
+          '<td class="col-child-trader">' + traderCellHtml(c.trader) + '</td>' +
           '<td class="col-child-qty">' + formatQty(c.qty) + '</td>' +
-          '<td class="col-child-price">' + formatQty(c.price) + '</td>' +
+          '<td class="col-child-price">' + formatPrice(c.price) + '</td>' +
           '<td class="col-child-matchqty">' + formatQty(c.matchQty) + '</td>' +
           '<td class="col-child-remain">' + formatQty(remain) + '</td>' +
           '</tr>';
@@ -2717,6 +3256,23 @@
     document.querySelectorAll('#bbg-tbody tr').forEach(function (r) {
       updateOrderAggregates(r.dataset.orderId);
     });
+
+    // Cấu hình Auto TWAP mẫu cho các lệnh tổng đang Hoạt động/Tạm dừng — dùng cho màn "Xem lại cài đặt"
+    function seedAutoTwapConfig(orderId, startTime, endTime, interval, contPct) {
+      var tr = document.getElementById('row-' + orderId);
+      if (!tr) return;
+      var startMin = timeToMinutes(startTime), endMin = timeToMinutes(endTime);
+      var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
+      var pushCount = computeTwapPushCount(startMin, endMin, interval);
+      var perPushQty = computeTwapPerPushQty(pushCount, remBal, contPct);
+      autoTwapConfigs[orderId] = {
+        startTime: startTime, endTime: endTime, interval: interval,
+        sessions: { continuous: contPct }, perPushQty: perPushQty, plannedCount: pushCount
+      };
+    }
+    seedAutoTwapConfig('LT20260615-01', '13:30', '14:15', 15, 100); // Hoạt động — Mua HPG
+    seedAutoTwapConfig('LT20260615-02', '10:00', '11:00', 15, 100); // Tạm dừng — Bán FPT
+    seedAutoTwapConfig('LT20260619-01', '09:00', '11:00', 15, 100); // Hoạt động — Bán MWG
 
     // Mục 1: gắn sort cho header 2 bảng
     bindSortableHeaders('bbg-thead', 'bbg-tbody');
