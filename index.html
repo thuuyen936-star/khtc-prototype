@@ -205,7 +205,7 @@
   table { width:100%; border-collapse:collapse; font-size:var(--fs-small); min-width:900px; }
   .table-detail-fills { min-width:0; }
   th { background: var(--th-bg); color: var(--text-dim); text-align:left; padding:9px 12px;
-       font-weight:600; font-size:var(--fs-small); text-transform:uppercase; letter-spacing:.04em;
+       font-weight:600; font-size:var(--fs-small);
        white-space:nowrap; border-bottom:1px solid var(--border); position:relative; }
   td { padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; font-size:var(--fs-small); }
   /* Đặt màu ở tbody (không phải td) để kế thừa tự nhiên — không tranh specificity với .buy/.sell/.link/badge-id... */
@@ -294,6 +294,16 @@
         white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .account-suggest-item:hover, .account-suggest-item.active { background:rgba(38,129,224,.15); }
   .account-suggest-item .code { color:var(--blue); font-weight:600; margin-right:6px; }
+  /* Danh sách gợi ý Chứng khoán — lọc động theo ký tự đang nhập */
+  .symbol-suggest-list { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--input-bg);
+        border:1px solid var(--border); border-radius:var(--radius-btn); max-height:220px; overflow-y:auto; z-index:20;
+        box-shadow:0 6px 16px rgba(0,0,0,.35); }
+  .symbol-suggest-list[hidden] { display:none; }
+  .symbol-suggest-item { padding:8px 10px; cursor:pointer; font-size:var(--fs-small); color:var(--text-title);
+        display:flex; justify-content:space-between; align-items:center; }
+  .symbol-suggest-item:hover, .symbol-suggest-item.active { background:rgba(38,129,224,.15); }
+  .symbol-suggest-item .sym { color:var(--blue); font-weight:700; min-width:48px; }
+  .symbol-suggest-item .mkt { color:var(--text-sub); font-size:11px; }
   .side-toggle.side-toggle-context span { pointer-events:none; }
   /* Viền khung Đặt lệnh theo trạng thái đang hoạt động (kể cả đang sửa lệnh con):
      xanh lá = đang Mua, đỏ = đang Bán — xem updatePanelBorder() */
@@ -556,16 +566,16 @@
                 <th class="sortable">Route</th>
                 <th class="sortable" title="Check price" style="width:64px;">Chk Px</th>
                 <th class="sortable">Account</th>
-                <th class="sortable">BBG Account</th>
+                <th class="sortable">BBG account</th>
                 <th class="sortable col-instructions">Instructions BBG</th>
                 <th class="sortable">Status</th>
                 <th class="sortable">Side</th>
                 <th class="sortable">Sec</th>
                 <th class="sortable">Qty</th>
                 <th class="sortable">LmtPx</th>
-                <th class="sortable">AUTO TWAP</th>
-                <th class="col-new sortable">Fill Qty</th>
-                <th class="col-new sortable">Avg Px</th>
+                <th class="sortable">Auto TWAP</th>
+                <th class="col-new sortable">Fill qty</th>
+                <th class="col-new sortable">Avg px</th>
                 <th class="col-new sortable">VWAP</th>
                 <th class="col-new sortable" title="Chênh lệch Giá khớp TB so với VWAP: AVG PX / VWAP - 1">% PR</th>
                 <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% COMP</th>
@@ -573,10 +583,10 @@
                 <th class="col-new sortable">REM BAL</th>
                 <th class="col-new sortable" title="Tổng khối lượng còn lại (chưa khớp) của các lệnh con còn hiệu lực">REM PL</th>
                 <th class="col-new sortable">KL hủy</th>
-                <th class="col-new sortable" title="Khối lượng x Giá đặt">Net Value</th>
-                <th class="col-new sortable" title="Giá trị đã khớp của các lệnh con liên quan">Filled Value</th>
+                <th class="col-new sortable" title="Khối lượng x Giá đặt">Net value</th>
+                <th class="col-new sortable" title="Giá trị đã khớp của các lệnh con liên quan">Filled value</th>
                 <th class="col-new sortable">Số hiệu lệnh</th>
-                <th class="sortable">Create Time</th>
+                <th class="sortable">Create time</th>
                 <th class="sortable">Trade ID</th>
                 <th class="sortable">Ghi chú</th>
               </tr>
@@ -642,11 +652,19 @@
           </div>
           <div class="field narrow">
             <label>Chứng khoán</label>
-            <input id="ord-symbol" value="" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase();applyMarketOrderPrice();validateOrderForm();" tabindex="5">
+            <div style="position:relative;">
+              <input id="ord-symbol" value="" autocomplete="off" style="text-transform:uppercase;width:100%;box-sizing:border-box;"
+                     oninput="this.value=this.value.toUpperCase();onSymbolInput(this.value);applyMarketOrderPrice();validateOrderForm();"
+                     onfocus="onSymbolInput(this.value)"
+                     onblur="setTimeout(hideSymbolSuggestions,150)"
+                     onkeydown="handleSymbolKeydown(event)"
+                     tabindex="5">
+              <div class="symbol-suggest-list" id="symbol-suggest-list" hidden></div>
+            </div>
           </div>
           <div class="field">
             <label>Loại lệnh</label>
-            <select id="ord-type" onchange="applyMarketOrderPrice();validateOrderForm();" tabindex="6"><option>Limit</option><option>Market</option></select>
+            <select id="ord-type" onchange="applyMarketOrderPrice();validateOrderForm();" tabindex="6"><option>Limit</option><option>Market</option><option>ATO</option><option>ATC</option></select>
           </div>
           <div class="field narrow">
             <label>Giá</label>
@@ -838,7 +856,7 @@
       </div>
       <div class="table-wrap">
         <table class="table-detail-fills">
-          <thead><tr><th>Thời gian</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Thời gian khớp</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
           <tbody id="detail-fills-tbody"></tbody>
         </table>
       </div>
@@ -1577,6 +1595,12 @@
       }
       // "Sửa lệnh tổng" enable theo đúng luật của "Hủy từ Fix Net"
       enabled.edit = enabled.fixnet;
+      // Route Manual: không thể sửa/hủy qua Fix Net — chỉ áp dụng cho lệnh Broker
+      var selectedTr = selectedOrderId ? document.getElementById('row-' + selectedOrderId) : null;
+      if (selectedTr && selectedTr.dataset.route === 'Manual') {
+        enabled.edit = false;
+        enabled.fixnet = false;
+      }
       // ACK, REJECT, Sửa lệnh tổng, Huỷ từ Fix Net, Detail chỉ active khi có 1 dòng lệnh tổng đang được chọn
       document.getElementById('btn-ack').classList.toggle('disabled', !enabled.ack || !selectedOrderId);
       document.getElementById('btn-reject').classList.toggle('disabled', !enabled.reject || !selectedOrderId);
@@ -2049,6 +2073,50 @@
       renderAccountSuggestions(value);
     }
 
+    function renderSymbolSuggestions(value) {
+      var list = document.getElementById('symbol-suggest-list');
+      var q = value.trim().toUpperCase();
+      if (!q) { list.hidden = true; return; }
+      var matches = SECURITIES.filter(function(s) { return s.symbol.indexOf(q) === 0; });
+      if (!matches.length) { list.hidden = true; return; }
+      list.innerHTML = matches.map(function(s) {
+        return '<div class="symbol-suggest-item" data-symbol="' + s.symbol + '" onmousedown="selectSymbolSuggestion(\'' + s.symbol + '\')">'
+             + '<span class="sym">' + s.symbol + '</span>'
+             + '<span class="mkt">' + formatPrice(s.marketPrice) + '</span>'
+             + '</div>';
+      }).join('');
+      list.hidden = false;
+    }
+    function selectSymbolSuggestion(sym) {
+      document.getElementById('ord-symbol').value = sym;
+      hideSymbolSuggestions();
+      applyMarketOrderPrice();
+      validateOrderForm();
+    }
+    function hideSymbolSuggestions() {
+      document.getElementById('symbol-suggest-list').hidden = true;
+    }
+    function moveSymbolSuggestion(delta) {
+      var items = document.querySelectorAll('#symbol-suggest-list .symbol-suggest-item');
+      var cur = Array.from(items).findIndex(function(el) { return el.classList.contains('active'); });
+      if (cur >= 0) items[cur].classList.remove('active');
+      var next = Math.max(0, Math.min(items.length - 1, cur + delta));
+      if (items[next]) items[next].classList.add('active');
+    }
+    function confirmSymbolSuggestion() {
+      var active = document.querySelector('#symbol-suggest-list .symbol-suggest-item.active');
+      if (active) { selectSymbolSuggestion(active.dataset.symbol); return; }
+      var items = document.querySelectorAll('#symbol-suggest-list .symbol-suggest-item');
+      if (items.length === 1) selectSymbolSuggestion(items[0].dataset.symbol);
+    }
+    function handleSymbolKeydown(e) {
+      if (e.key === 'ArrowDown')  { e.preventDefault(); moveSymbolSuggestion(1); }
+      else if (e.key === 'ArrowUp')   { e.preventDefault(); moveSymbolSuggestion(-1); }
+      else if (e.key === 'Enter') { if (!document.getElementById('symbol-suggest-list').hidden) { e.preventDefault(); confirmSymbolSuggestion(); } }
+      else if (e.key === 'Escape') { hideSymbolSuggestions(); }
+    }
+    function onSymbolInput(value) { renderSymbolSuggestions(value); }
+
     // Kiểm tra các trường Đặt lệnh con hợp lệ (đủ dữ liệu + KL đặt <= Qty lệnh tổng) để bật/tắt nút "Đặt lệnh"
     function validateOrderForm() {
       var btn = document.getElementById('btn-place');
@@ -2090,7 +2158,8 @@
       var price = document.getElementById('ord-price').value.trim();
       var qty = document.getElementById('ord-qty').value.trim();
 
-      var fieldsFilled = !!(account && subaccount && symbol && price && qty);
+      var symbolValid = !symbol || !!SECURITY_PRICES[symbol];
+      var fieldsFilled = !!(account && subaccount && symbol && symbolValid && price && qty);
       var qtyValid = fieldsFilled && parseQty(qty) > 0;
 
       // Đang đặt lệnh con cho 1 lệnh tổng đang chọn → KL đặt phải <= Qty của lệnh tổng, và lệnh tổng chưa "Đã gửi"... (Đã gửi vẫn cho đặt lệnh con, chỉ chặn khi cần)
@@ -2114,6 +2183,7 @@
       document.getElementById('ord-price').value = formatPrice(parseQty(tr.dataset.price));
       document.getElementById('ord-qty').value = ''; // Khối lượng không tự fill — user tự nhập khối lượng đặt lệnh con
       document.getElementById('ord-orderid').value = tr.dataset.orderId;
+      document.getElementById('ord-note').value = tr.dataset.note || '';
       markNumberFieldPendingReplace('ord-price'); // Giá điền sẵn theo lệnh tổng → gõ số mới là thay thế
       validateOrderForm();
     }
@@ -2127,8 +2197,9 @@
         document.getElementById(id).disabled = locked;
       });
       document.getElementById('side-toggle').classList.toggle('disabled-toggle', locked);
-      // Loại lệnh trong Đặt lệnh con luôn nhận theo lệnh tổng, không cho sửa
+      // Loại lệnh và Ghi chú trong Đặt lệnh con luôn khóa — ghi chú hiển thị note lệnh tổng hoặc lý do chặn
       document.getElementById('ord-type').disabled = true;
+      document.getElementById('ord-note').disabled = true;
       var groupLocked = locked && !!readOnlyAll;
       ['ord-price', 'ord-qty'].forEach(function (id) {
         document.getElementById(id).disabled = groupLocked;
@@ -2145,8 +2216,17 @@
       ['ord-price', 'ord-qty'].forEach(function (id) {
         document.getElementById(id).disabled = lockGroup;
       });
-      qtyEl.title = twapActive ? 'Auto TWAP đang Hoạt động — không thể tự đặt lệnh con (tạm dừng Auto TWAP để đặt tay)'
-        : (lockGroup ? 'REM BAL = 0 (không thể đặt thêm lệnh con)' : '');
+      var noteEl = document.getElementById('ord-note');
+      if (twapActive) {
+        qtyEl.title = 'Auto TWAP đang Hoạt động — không thể tự đặt lệnh con (tạm dừng Auto TWAP để đặt tay)';
+        noteEl.value = 'Auto TWAP đang Hoạt động — tạm dừng để đặt lệnh con thủ công';
+      } else if (lockGroup) {
+        qtyEl.title = 'REM BAL = 0 (không thể đặt thêm lệnh con)';
+        noteEl.value = 'REM BAL = 0 — không thể đặt thêm lệnh con';
+      } else {
+        qtyEl.title = '';
+        noteEl.value = tr.dataset.note || '';
+      }
     }
 
     // Đặt lệnh con: Loại lệnh kế thừa từ lệnh tổng — nếu là Market thì Giá tự fill Trần (Mua)/Sàn (Bán)
@@ -2154,7 +2234,8 @@
     function applyMarketPriceForChildEntry() {
       var priceEl = document.getElementById('ord-price');
       if (priceEl.disabled) return;
-      if (document.getElementById('ord-type').value !== 'Market') return;
+      var childOrderType = document.getElementById('ord-type').value;
+      if (childOrderType !== 'Market' && childOrderType !== 'ATO' && childOrderType !== 'ATC') return;
       var symbol = document.getElementById('ord-symbol').value.trim().toUpperCase();
       var prices = SECURITY_PRICES[symbol];
       if (prices) {
@@ -2207,7 +2288,8 @@
     function applyMarketOrderPrice() {
       var priceEl = document.getElementById('ord-price');
       var isPlacingParent = document.getElementById('btn-toolbar-place').classList.contains('toggled-active');
-      var isMarket = document.getElementById('ord-type').value === 'Market';
+      var orderType = document.getElementById('ord-type').value;
+      var isMarket = orderType === 'Market' || orderType === 'ATO' || orderType === 'ATC';
       if (!isPlacingParent || !isMarket) {
         priceEl.disabled = false;
         return;
@@ -2609,6 +2691,20 @@
       // Kiểm tra khớp lệnh: chỉ áp dụng cho lệnh Mua
       if (side === 'Mua') {
         checkCrossMatch(symbol, price, qty, accountCode, parentTr);
+      }
+
+      // Khôi phục trạng thái chọn lệnh tổng + reload form (xoá giá/KL lệnh con vừa đặt)
+      if (selectedOrderId === parentTr.dataset.orderId) {
+        parentTr.classList.add('row-active');
+        var dot = parentTr.querySelector('.status-dot');
+        if (dot) dot.classList.add('active');
+        loadOrderToForm(parentTr);
+        document.getElementById('ord-price').value = '';
+        document.getElementById('ord-qty').value = '';
+        refreshQtyRemBalHint(parentTr);
+        updateToolbar(parentTr.querySelector('.col-status').textContent.trim());
+        validateOrderForm();
+        document.getElementById('ord-price').focus();
       }
     }
 

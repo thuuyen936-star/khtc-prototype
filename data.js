@@ -25,10 +25,20 @@ var CUSTOMERS = [
 
 // ----- Bảng thông tin chứng khoán: Mã CK + Giá thị trường + Giá Trần/Sàn (biên độ dao động ±7%) -----
 var SECURITIES = [
-  { symbol: 'HPG', marketPrice: 24580, ceilingPrice: 26300, floorPrice: 22850 },
-  { symbol: 'FPT', marketPrice: 75950, ceilingPrice: 81300, floorPrice: 70600 },
-  { symbol: 'VIC', marketPrice: 45050, ceilingPrice: 48200, floorPrice: 41900 },
-  { symbol: 'MWG', marketPrice: 52480, ceilingPrice: 56200, floorPrice: 48800 }
+  { symbol: 'ACB',  marketPrice: 23450, ceilingPrice: 25100, floorPrice: 21800 },
+  { symbol: 'BID',  marketPrice: 43200, ceilingPrice: 46200, floorPrice: 40200 },
+  { symbol: 'CTG',  marketPrice: 34100, ceilingPrice: 36500, floorPrice: 31700 },
+  { symbol: 'FPT',  marketPrice: 75950, ceilingPrice: 81300, floorPrice: 70600 },
+  { symbol: 'HPG',  marketPrice: 24580, ceilingPrice: 26300, floorPrice: 22850 },
+  { symbol: 'MBB',  marketPrice: 21300, ceilingPrice: 22800, floorPrice: 19800 },
+  { symbol: 'MSN',  marketPrice: 58900, ceilingPrice: 63000, floorPrice: 54800 },
+  { symbol: 'MWG',  marketPrice: 52480, ceilingPrice: 56200, floorPrice: 48800 },
+  { symbol: 'TCB',  marketPrice: 19200, ceilingPrice: 20500, floorPrice: 17900 },
+  { symbol: 'VCB',  marketPrice: 88500, ceilingPrice: 94700, floorPrice: 82300 },
+  { symbol: 'VHM',  marketPrice: 38600, ceilingPrice: 41300, floorPrice: 35900 },
+  { symbol: 'VIC',  marketPrice: 45050, ceilingPrice: 48200, floorPrice: 41900 },
+  { symbol: 'VNM',  marketPrice: 61200, ceilingPrice: 65500, floorPrice: 56900 },
+  { symbol: 'VPB',  marketPrice: 16800, ceilingPrice: 18000, floorPrice: 15600 },
 ];
 
 // ----- Bảng lệnh tổng (Bloomberg và lệnh tổng) -----
