@@ -123,6 +123,14 @@ var PARENT_ORDERS = [
     // Đang chạy Auto TWAP (phiên liên tục): 3 lệnh con do Auto TWAP tự sinh (trader "Auto Twap") +
     // 1 lệnh con do broker đặt tay trước khi cài đặt Auto TWAP (trader ADMINHN, lúc 09:05, trước cả
     // giờ Auto TWAP bắt đầu 09:15) — dùng để demo màn hình xem lại cài đặt Auto TWAP.
+    orderId: 'LT20260806-01', route: 'Broker', checkPx: '', createTime: '09:15:00',
+    instructions: '',
+    status: 'Chờ xác nhận đặt', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
+    symbol: 'VCB', qty: 2000, price: 88000, fillQty: 0, avgPx: 0, vwap: 88500,
+    orderType: 'LO', note: 'Ưu tiên giá tốt', marketVol: 6200000,
+    tradeId: ''
+  },
+  {
     orderId: 'LT20260619-01', route: 'Manual', checkPx: '2', createTime: '09:00:00',
     instructions: 'Auto TWAP chia lệnh theo phiên liên tục',
     // Đã khớp 400/3000 → trạng thái "Khớp 1 phần"; avgPx = 52500 (các lệnh con khớp đều @ 52500)

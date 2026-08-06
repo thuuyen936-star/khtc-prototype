@@ -2168,6 +2168,17 @@
         if (parentTr && parseQty(qty) > parseQty(parentTr.dataset.qty)) qtyValid = false;
         // Auto TWAP đang Hoạt động → broker không được tự đặt lệnh con
         if (parentTr && parentTr.dataset.autotwap === 'active') qtyValid = false;
+        // Chk Px = 1: giá lệnh con không được vượt LmtPx (Mua: ≤ LmtPx; Bán: ≥ LmtPx)
+        if (qtyValid && parentTr && price) {
+          var chkPxCell = parentTr.querySelector('.col-checkpx');
+          if (chkPxCell && chkPxCell.textContent.trim() === '1') {
+            var lmtPx = parseQty(parentTr.dataset.price);
+            var childPrice = parsePrice(price);
+            var entrySide = document.getElementById('side-toggle').dataset.side;
+            if (entrySide === 'Mua' && childPrice > lmtPx) qtyValid = false;
+            if (entrySide === 'Bán' && childPrice < lmtPx) qtyValid = false;
+          }
+        }
       }
 
       btn.disabled = !fieldsFilled || !qtyValid;
