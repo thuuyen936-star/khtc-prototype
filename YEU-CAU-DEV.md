@@ -245,23 +245,26 @@ Số hiệu lệnh tổng: <orderId>
 ┌──────────────────────────────────────┐
 │ Tài khoản        │ Tiểu khoản        │
 ├──────────────────────────────────────┤
-│ Loại lệnh │ Mã CK │ Qty │ Fill Qty   │
-│ Rem Bal │ Rem Placed │ LMT PX │ AVG PX│
+│ Side │ Loại lệnh │ Mã CK │ Qty       │
+│ Fill Qty │ Rem Bal │ Rem Placed      │
+│ LMT PX │ AVG PX                      │
 ├──────────────────────────────────────┤
 │ Instructions Bloomberg               │
 │ Ghi chú                    [✏️ sửa]  │
 ├──────────────────────────────────────┤
-│ Bảng lịch sử lệnh con:               │
-│ Thời gian│KL đặt│KL khớp│Giá│KL chờ  │
-│ xử lý│Trạng thái                     │
+│ Chi tiết lệnh khớp:                  │
+│ Thời gian đặt│KL đặt│KL khớp│Giá     │
+│ │KL chờ xử lý│Trạng thái             │
 └──────────────────────────────────────┘
 ```
 
 **Yêu cầu:**
+- **Side** (`Mua`/`Bán`) đứng **ngay trước Loại lệnh**, tô màu theo quy ước Mua/Bán (§A2): xanh lá / đỏ.
 - Nhãn dùng đúng thuật ngữ: **Qty, Fill Qty, Rem Bal, Rem Placed, LMT PX, AVG PX** (không dùng "KL chặn/KL khớp/Giá chặn").
 - `Rem Bal` và `Rem Placed` là **2 chỉ số khác nhau**, phải bind đúng dữ liệu tương ứng.
 - **Sửa Ghi chú:** click icon bút → chuyển thành input → Enter hoặc blur để lưu, Escape để hủy. **Sau khi lưu phải đồng bộ ngay ra cột "Ghi chú" của bảng lệnh tổng bên ngoài.**
-- Bảng lịch sử liệt kê **đúng các lệnh con thật** của lệnh tổng (không tách giả lập từ Fill Qty).
+- **Bảng "Chi tiết lệnh khớp"** liệt kê **đúng các lệnh con thật** của lệnh tổng (không tách giả lập từ Fill Qty), và **chỉ những lệnh con đã có khối lượng khớp** — trạng thái `Khớp 1 phần` hoặc `Khớp hết`. Lệnh con `Đã gửi`, `Đã hủy`, `Đã sửa`, `Chờ xác nhận` không thuộc bảng này vì chưa phát sinh khớp thật. Không có lệnh nào khớp → hiện `Chưa có lệnh khớp`.
+- Cột đầu của bảng là **Thời gian đặt** (giờ đặt lệnh con) — không phải thời gian khớp; dữ liệu lệnh con hiện chỉ lưu một mốc thời gian duy nhất là thời điểm đặt.
 
 ---
 

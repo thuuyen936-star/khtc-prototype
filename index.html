@@ -832,6 +832,7 @@
         <div><label>Tiểu khoản</label><span id="detail-subaccount"></span></div>
       </div>
       <div class="detail-grid">
+        <div><label>Side</label><span id="detail-side"></span></div>
         <div><label>Loại lệnh</label><span id="detail-ordertype"></span></div>
         <div><label>Mã CK</label><span id="detail-symbol"></span></div>
         <div><label>Qty</label><span id="detail-qty"></span></div>
@@ -854,9 +855,11 @@
           </div>
         </div>
       </div>
+      <div style="font-size:var(--fs-small);font-weight:600;color:var(--text-title);margin-bottom:8px;">Chi tiết lệnh khớp</div>
       <div class="table-wrap">
         <table class="table-detail-fills">
-          <thead><tr><th>Thời gian khớp</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
+          <!-- Chỉ liệt kê lệnh con ĐÃ KHỚP (Khớp 1 phần / Khớp hết) — xem buildFillHistory() -->
+          <thead><tr><th>Thời gian đặt</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
           <tbody id="detail-fills-tbody"></tbody>
         </table>
       </div>
@@ -2933,6 +2936,9 @@
       document.getElementById('detail-avgpx').textContent = tr.querySelector('.col-avgpx').textContent;
       document.getElementById('detail-subaccount').textContent = SUBACCOUNTS[tr.dataset.subaccount] || tr.dataset.subaccount;
       document.getElementById('detail-symbol').textContent = tr.dataset.symbol;
+      var detailSideEl = document.getElementById('detail-side');
+      detailSideEl.textContent = tr.dataset.side;
+      detailSideEl.className = tr.dataset.side === 'Mua' ? 'buy' : 'sell';
       document.getElementById('detail-ordertype').textContent = tr.dataset.ordertype || '';
       document.getElementById('detail-rembal').textContent = tr.querySelector('.col-rembal').textContent;
       document.getElementById('detail-remplace').textContent = tr.querySelector('.col-remplace').textContent;
@@ -2995,10 +3001,18 @@
     function buildFillHistory(tr) {
       var orderId = tr.dataset.orderId;
       var tbody = document.getElementById('detail-fills-tbody');
-      var children = document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]');
+      // "Chi tiết lệnh khớp" chỉ liệt kê lệnh con ĐÃ KHỚP — Khớp 1 phần / Khớp hết.
+      // Lệnh Đã gửi/Đã hủy/Đã sửa/Chờ xác nhận chưa có khối lượng khớp thật nên không thuộc bảng này.
+      var children = Array.prototype.filter.call(
+        document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]'),
+        function (r) {
+          var st = r.querySelector('.col-child-status').textContent.trim();
+          return st === 'Khớp 1 phần' || st === 'Khớp hết';
+        }
+      );
 
       if (!children.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có lệnh con</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
         return;
       }
 
