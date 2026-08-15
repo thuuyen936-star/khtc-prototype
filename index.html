@@ -345,6 +345,9 @@
   .modal-radio input { accent-color: var(--blue); width:15px; height:15px; cursor:pointer; }
   .modal-divider { border-top:1px solid var(--border); margin:12px 0 0; }
   .modal-actions { display:flex; gap:10px; margin-top:18px; }
+  /* Biến thể nút gọn — không kéo dài hết chiều ngang modal (VD màn quản lý Auto TWAP) */
+  .modal-actions-compact { justify-content:center; }
+  .modal-actions-compact .modal-btn { flex:0 0 auto; padding:11px 28px; }
   .modal-btn { flex:1; padding:11px; border-radius:var(--radius-btn); font-size:var(--fs-small); font-weight:700;
                cursor:pointer; border:none; text-align:center; }
   .modal-btn.cancel { background: var(--grey-btn); color:var(--text); }
@@ -391,7 +394,7 @@
   .twap-section-title { font-weight:700; color:var(--text-title); font-size:var(--fs-small); margin:14px 0 8px; }
   .modal-kv-row input[type="time"], .modal-kv-row input[type="number"] {
     background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
-    padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
+    padding:2px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
 
   /* ===== Modal: Detail (4) ===== */
   .detail-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px 18px;
@@ -1083,7 +1086,7 @@
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
         <div class="modal-kv-row"><label>Số lệnh kế hoạch còn lại</label><span id="twapview-planned"></span></div>
       </div>
-      <div class="modal-actions">
+      <div class="modal-actions modal-actions-compact">
         <button class="modal-btn confirm" id="twapview-edit-btn" onclick="editAutoTwapFromReview()">Sửa</button>
         <button class="modal-btn confirm" id="twapview-toggle-btn" onclick="toggleAutoTwapPauseResume()">Tạm dừng</button>
       </div>
