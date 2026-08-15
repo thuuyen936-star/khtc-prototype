@@ -463,6 +463,7 @@ KL lệnh cuối cùng (theo thời gian, ATC nếu có, ngược lại lệnh l
 | Thiếu giờ bắt đầu / kết thúc / tần suất ≤ 0 | "Vui lòng nhập đầy đủ Thời gian bắt đầu/kết thúc/Tần suất hợp lệ." |
 | Giờ kết thúc ≤ giờ bắt đầu | (gộp vào thông báo trên) |
 | REM BAL không đủ 100 cổ phiếu cho ATO/ATC bắt buộc | "REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc." |
+| REM BAL không đủ 100 cổ phiếu (không có ATO/ATC bắt buộc, chỉ có lệnh liên tục) | "REM BAL quá nhỏ, không đủ 100 cổ phiếu để lập kế hoạch." |
 | Khung giờ/Tần suất khiến tổng số lệnh = 0 | "Khung giờ/Tần suất không hợp lệ, không lập được kế hoạch." |
 
 **Sau khi xác nhận:** lưu cấu hình gồm `startTime, endTime, interval, effectiveInterval, plannedCount, plan[]` (mỗi phần tử: `seq, session, timeMin, qty`); `autoTwap` → `active` (nếu trước đó là `none`); nếu đang sửa cấu hình của lệnh `active`/`paused` thì **giữ nguyên trạng thái hiện tại**.
