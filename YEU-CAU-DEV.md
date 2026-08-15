@@ -431,6 +431,7 @@ Tần suất hiệu lực   15 phút
 **Quy tắc nhập:**
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
 - **Thời gian kết thúc**, **Tần suất (phút)**: broker tự nhập.
+- **Ô giờ luôn hiển thị định dạng 24h (HH:MM)** — dùng ô nhập chữ tự build (không phải `<input type="time">` gốc của trình duyệt, vì định dạng 12h/24h của input đó phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần). Tự thêm dấu `:` khi gõ đủ 3 chữ số trở lên; khi rời khỏi ô, giờ/phút ngoài phạm vi hợp lệ tự chặn về 00–23 / 00–59.
 - Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
 
 ### 6.3. Khung giờ phiên & công thức

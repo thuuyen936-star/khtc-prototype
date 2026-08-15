@@ -347,7 +347,7 @@
   .modal-actions { display:flex; gap:10px; margin-top:18px; }
   /* Biến thể nút gọn — không kéo dài hết chiều ngang modal (VD màn quản lý Auto TWAP) */
   .modal-actions-compact { justify-content:center; }
-  .modal-actions-compact .modal-btn { flex:0 0 auto; padding:11px 28px; }
+  .modal-actions-compact .modal-btn { flex:0 0 auto; padding:11px 28px; min-width:120px; }
   .modal-btn { flex:1; padding:11px; border-radius:var(--radius-btn); font-size:var(--fs-small); font-weight:700;
                cursor:pointer; border:none; text-align:center; }
   .modal-btn.cancel { background: var(--grey-btn); color:var(--text); }
@@ -383,7 +383,7 @@
   .modal-kv-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:var(--fs-small); }
   .modal-kv-row:last-child { border-bottom:none; }
   /* Biến thể 2 cột — tiết kiệm chiều cao cho khối thông tin có nhiều dòng (VD màn quản lý Auto TWAP) */
-  .modal-kv-group-2col { display:grid; grid-template-columns:1fr 1fr; column-gap:16px; }
+  .modal-kv-group-2col { display:grid; grid-template-columns:1fr 1fr; column-gap:40px; }
   .modal-kv-group-2col .modal-kv-row:nth-last-child(-n+2) { border-bottom:none; }
   .modal-kv-row label { color:var(--text-dim); }
   .modal-kv-row span { color:var(--text-title); font-weight:600; font-family:var(--font-ui); }
@@ -392,7 +392,7 @@
 
   /* ===== Modal: Cài đặt Auto TWAP ===== */
   .twap-section-title { font-weight:700; color:var(--text-title); font-size:var(--fs-small); margin:14px 0 8px; }
-  .modal-kv-row input[type="time"], .modal-kv-row input[type="number"] {
+  .modal-kv-row .twap-time-input, .modal-kv-row input[type="number"] {
     background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
     padding:2px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
 
@@ -1045,8 +1045,8 @@
 
       <div class="twap-section-title">Cấu hình chia lệnh <span style="color:var(--text-dim);font-weight:400;">(REM BAL: <span id="twap-rembal"></span>)</span></div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="time" id="twap-start-time" oninput="onAutoTwapInputsChanged()"></div>
-        <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="time" id="twap-end-time" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="text" class="twap-time-input" id="twap-start-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
+        <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="text" class="twap-time-input" id="twap-end-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
         <div class="modal-kv-row"><label>Tần suất (phút)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
       </div>
 
@@ -1265,6 +1265,24 @@
       if (!hhmm) return null;
       var p = hhmm.split(':');
       return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
+    }
+
+    // Ô nhập giờ dạng text HH:MM (24h) — thay cho <input type="time"> vì định dạng 12h/24h của input
+    // native phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần.
+    // Tự thêm dấu ":" khi gõ đủ 3 chữ số trở lên.
+    function formatTimeInput(el) {
+      var digits = el.value.replace(/[^0-9]/g, '').slice(0, 4);
+      el.value = digits.length >= 3 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
+    }
+
+    // Chặn giờ/phút ngoài phạm vi hợp lệ (00-23 / 00-59) khi rời khỏi ô — chạy sau formatTimeInput.
+    function clampTimeInput(el) {
+      if (!el.value) return;
+      var m = el.value.match(/^(\d{1,2}):?(\d{0,2})$/);
+      if (!m) { el.value = ''; return; }
+      var hh = Math.min(23, parseInt(m[1], 10) || 0);
+      var mm = m[2] ? Math.min(59, parseInt(m[2], 10) || 0) : 0;
+      el.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
     }
 
     function minutesToTimeStr(min) {
