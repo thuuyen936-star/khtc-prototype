@@ -1246,6 +1246,11 @@
 
       var requiredFixed = (hasAto ? 1 : 0) + (hasAtc ? 1 : 0);
       var maxByLot100 = Math.floor(remBal / 100);
+      if (maxByLot100 === 0) {
+        return { error: requiredFixed > 0
+          ? 'REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc.'
+          : 'REM BAL quá nhỏ, không đủ 100 cổ phiếu để lập kế hoạch.' };
+      }
       if (maxByLot100 < requiredFixed) {
         return { error: 'REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc.' };
       }
@@ -1264,6 +1269,8 @@
       }
 
       var perOrderQty = Math.floor(remBal / totalCount / 100) * 100;
+      // REM BAL luôn là bội số 100 theo quy tắc chẵn lô (xem updateOrderAggregates) — nên lastOrderQty
+      // (nhận phần dư) cũng luôn là bội số 100; hàm này không tự làm tròn lại remBal.
       var lastOrderQty = remBal - perOrderQty * (totalCount - 1);
 
       var plan = [];
