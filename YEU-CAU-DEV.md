@@ -11,10 +11,16 @@
 
 | Loại dữ liệu | Lưu trữ (backend) | Hiển thị / Nhập liệu (UI) | Ví dụ |
 |---|---|---|---|
-| **Giá** | VND thực (số nguyên) | **Đơn vị nghìn đồng** | Lưu `24600` → hiện `24.6`; user gõ `15` = 15.000đ |
+| **Giá** (đặt lệnh: LmtPx, Chk Px…) | VND thực (số nguyên) | **Đơn vị nghìn đồng**, tối đa **2** chữ số thập phân | Lưu `24600` → hiện `24.6`; user gõ `15` = 15.000đ |
+| **Avg Px** (giá khớp bình quân) | VND thực, **cho phép lẻ** | Đơn vị nghìn đồng, tối đa **6** chữ số thập phân | Lưu `24570.333333` → hiện `24.570333` |
+| **VWAP** | VND thực, **cho phép lẻ** | Đơn vị nghìn đồng, tối đa **4** chữ số thập phân | Lưu `24615.256789` → hiện `24.6153` |
 | **Khối lượng** | Số cổ phiếu | Có dấu phân cách hàng nghìn | `5000` → `5,000` |
-| **Giá trị (Net/Filled Value)** | VND thực | VND thực, phân cách hàng nghìn | `123,000,000` |
+| **Giá trị (Net/Filled Value)** | VND thực | VND thực, phân cách hàng nghìn, **làm tròn về đồng** | `123,000,000` |
 | **Tỷ lệ %** | — | 2 chữ số thập phân + `%` | `21.00%` |
+
+> **Avg Px và VWAP là giá bình quân gia quyền nên hầu như luôn lẻ** — backend phải trả về số thực,
+> không làm tròn về số nguyên VND. Dùng `maximumFractionDigits` (không phải `minimumFractionDigits`)
+> nên giá chẵn vẫn hiện gọn: `24570` → `24.57`, không phải `24.570000`.
 
 **Bắt buộc:** mọi phép tính nội bộ (Net Value, Filled Value, khớp chéo, giá bình quân) phải thực hiện trên **giá VND thực**, không dùng giá hiển thị. UI chỉ là lớp quy đổi.
 
@@ -110,7 +116,7 @@ Tất cả chỉ số của lệnh tổng được **tổng hợp trực tiếp 
 | **REM PL** (Rem Placed) | `Σ (qty − matchQty)` của lệnh con **còn hiệu lực** (loại trừ `Đã hủy` **và** `Đã sửa`) |
 | **REM BAL** | `Qty − Fill Qty − REM PL` |
 | **KL hủy** | `Σ (qty − matchQty)` của lệnh con `Đã hủy` — chỉ tính phần **chưa khớp** |
-| **Avg Px** | `Σ(matchQty × price) / Σ matchQty`; nếu Fill Qty = 0 → để trống (không hiện `0`) |
+| **Avg Px** | `Σ(matchQty × price) / Σ matchQty` — **không làm tròn**, hiển thị tới 6 chữ số thập phân; nếu Fill Qty = 0 → để trống (không hiện `0`) |
 | **% COMP** | `Fill Qty / Qty × 100` |
 | **% Khớp/TT** | `Fill Qty / marketVol × 100` |
 | **% PR** | Chênh lệch Avg Px so với VWAP, **mang dấu theo chất lượng khớp**:<br>• Lệnh **Mua**: `−(Avg Px / VWAP − 1) × 100` → âm khi `Avg Px > VWAP`<br>• Lệnh **Bán**: `(Avg Px / VWAP − 1) × 100` → âm khi `Avg Px < VWAP`<br>Dấu âm luôn nghĩa là khớp **bất lợi**. Chỉ hiện khi Fill Qty > 0 và VWAP > 0 |

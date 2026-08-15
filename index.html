@@ -2647,7 +2647,8 @@
       document.getElementById('childplace-qty').textContent = formatQty(childQty);
       document.getElementById('childplace-price').textContent = formatPrice(childPrice);
       document.getElementById('childplace-value').textContent = formatQty(value);
-      document.getElementById('childplace-avgpx').textContent = formatPrice(Math.round(avgPx));
+      // Không làm tròn: giá bình quân gia quyền vốn lẻ, hiển thị tới 6 chữ số thập phân
+      document.getElementById('childplace-avgpx').textContent = formatPricePrecise(avgPx, AVGPX_DECIMALS);
       var childConfirmBtn = document.getElementById('childplace-confirm-btn');
       childConfirmBtn.textContent = isBuy ? 'Xác nhận đặt Mua' : 'Xác nhận đặt Bán';
       childConfirmBtn.classList.remove('buy-confirm', 'sell-confirm');
@@ -2764,6 +2765,20 @@
       return (n / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 });
     }
 
+    /* Avg Px và VWAP là giá BÌNH QUÂN GIA QUYỀN nên gần như luôn lẻ, cần nhiều
+       chữ số thập phân hơn giá đặt: Avg Px tới 6, VWAP tới 4 (đơn vị nghìn đồng).
+       Dùng maximumFractionDigits ⇒ giá tròn vẫn hiện gọn ("24.57"), không đuôi 0. */
+    var AVGPX_DECIMALS = 6, VWAP_DECIMALS = 4;
+    function formatPricePrecise(n, digits) {
+      return (n / 1000).toLocaleString('en-US', { maximumFractionDigits: digits });
+    }
+
+    /* Đọc số có thể LẺ từ dataset. parseQty() dùng parseInt nên cắt mất phần
+       thập phân — không dùng được cho Avg Px / VWAP. */
+    function parseNum(text) {
+      return parseFloat(String(text).replace(/,/g, '')) || 0;
+    }
+
     function parsePrice(text) {
       return Math.round((parseFloat(String(text).replace(/,/g, '')) || 0) * 1000);
     }
@@ -2841,15 +2856,16 @@
       var fillpctTd = tr.querySelector('.col-fillpct');
       if (fillpctTd) fillpctTd.innerHTML = fillPctText(matched, marketVol);
 
-      var avgPx = parseQty(tr.dataset.avgpx);
+      var avgPx = parseNum(tr.dataset.avgpx);
       var filledValueTd = tr.querySelector('.col-filledvalue');
-      if (filledValueTd) filledValueTd.textContent = formatQty(matched * avgPx);
+      // Filled Value là số tiền ⇒ làm tròn về đồng, không kéo phần lẻ của Avg Px ra
+      if (filledValueTd) filledValueTd.textContent = formatQty(Math.round(matched * avgPx));
 
       // Chưa có khối lượng khớp → để trống Giá khớp TB (Avg Px), không hiện "0"
       var avgpxTd = tr.querySelector('.col-avgpx');
-      if (avgpxTd) avgpxTd.textContent = matched > 0 ? formatPrice(avgPx) : '';
+      if (avgpxTd) avgpxTd.textContent = matched > 0 ? formatPricePrecise(avgPx, AVGPX_DECIMALS) : '';
 
-      var vwap = parseQty(tr.dataset.vwap);
+      var vwap = parseNum(tr.dataset.vwap);
       var percentprTd = tr.querySelector('.col-percentpr');
       if (percentprTd) percentprTd.innerHTML = percentPrText(avgPx, vwap, matched, tr.dataset.side);
 
@@ -3291,7 +3307,8 @@
         return '<tr id="row-' + o.orderId + '" data-order-id="' + o.orderId + '" ' +
           'data-side="' + o.side + '" data-account="' + o.account + '" data-subaccount="' + o.subaccount + '" ' +
           'data-symbol="' + o.symbol + '" data-price="' + formatQty(o.price) + '" data-qty="' + formatQty(o.qty) + '" ' +
-          'data-fillqty="' + formatQty(o.fillQty) + '" data-avgpx="' + formatQty(o.avgPx) + '" data-vwap="' + formatQty(o.vwap) + '" ' +
+          // avgpx/vwap ghi số THÔ (không tách nghìn, không làm tròn) để giữ phần thập phân
+          'data-fillqty="' + formatQty(o.fillQty) + '" data-avgpx="' + o.avgPx + '" data-vwap="' + o.vwap + '" ' +
           'data-instructions="' + o.instructions + '" data-note="' + o.note + '" data-marketvol="' + formatQty(o.marketVol) + '" ' +
           'data-ordertype="' + o.orderType + '" data-route="' + o.route + '" ' +
           'data-autotwap="' + (o.autoTwap || 'none') + '">' +
@@ -3308,8 +3325,8 @@
           '<td class="col-new col-price">' + formatPrice(o.price) + '</td>' +
           '<td class="col-new">' + autoTwapCellHtml(o.autoTwap) + '</td>' +
           '<td class="col-new col-fillqty">' + formatQty(o.fillQty) + '</td>' +
-          '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatPrice(o.avgPx) : '') + '</td>' +
-          '<td class="col-new">' + formatPrice(o.vwap) + '</td>' +
+          '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatPricePrecise(o.avgPx, AVGPX_DECIMALS) : '') + '</td>' +
+          '<td class="col-new">' + formatPricePrecise(o.vwap, VWAP_DECIMALS) + '</td>' +
           '<td class="col-new col-percentpr">' + percentPrText(o.avgPx, o.vwap, o.fillQty, o.side) + '</td>' +
           '<td class="col-new col-completepct">0.00%</td>' +
           '<td class="col-new col-fillpct">0.00%</td>' +
