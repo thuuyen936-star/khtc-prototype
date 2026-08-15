@@ -404,17 +404,14 @@ Nút `Auto TWAP` **enable** khi lệnh tổng đang chọn thỏa **một trong 
 Cài đặt Auto TWAP                    ✕
             MWG
            [BÁN]
-── Cấu hình chia lệnh ──────────────
+── Cấu hình chia lệnh (REM BAL: 1,600) ──
 Thời gian bắt đầu      [09:00]
 Thời gian kết thúc     [11:00]
 Tần suất (phút)        [15]
-── Phân bổ lệnh theo phiên (REM BAL: 1,600) ──
-☑ Khớp lệnh liên tục   [100] %
-☐ ATO                  [   ] %
-☐ ATC                  [   ] %
-── Kết quả tính toán ───────────────
-Số lần đẩy lệnh (phiên liên tục)   7
-KL mỗi lệnh (phiên liên tục)     200
+── Dự kiến ──────────────────────────
+Số lệnh        1 ATO + 7 liên tục = 8 lệnh
+KL mỗi lệnh    200
+Tần suất hiệu lực   15 phút
 [thông báo lỗi]
         [Hủy]  [Xác nhận]
 ```
@@ -422,42 +419,53 @@ KL mỗi lệnh (phiên liên tục)     200
 **Quy tắc nhập:**
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
 - **Thời gian kết thúc**, **Tần suất (phút)**: broker tự nhập.
-- Mỗi phiên được tick sẽ mở ô nhập **tỷ trọng %**; **tổng các phiên phải = 100%**.
-- **Nếu Thời gian bắt đầu > 9h15 → khóa checkbox ATO** (tự bỏ tick nếu đang tick).
+- Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
 
 ### 6.3. Khung giờ phiên & công thức
 
-| Phiên | Khung giờ |
-|---|---|
-| ATO | 09:00 – 09:15 |
-| Khớp lệnh liên tục | 09:15 – 14:30 (**trừ nghỉ trưa 11:30 – 13:00**) |
-| ATC | 14:30 – 14:45 |
+| Phiên | Khung giờ | Điều kiện tự lập kế hoạch |
+|---|---|---|
+| ATO | 09:00 – 09:15 | Thời gian bắt đầu **< 09:15** |
+| Khớp lệnh liên tục | 09:15 – 14:30 (**trừ nghỉ trưa 11:30 – 13:00**) | luôn tính nếu còn thời lượng khả dụng |
+| ATC | 14:30 – 14:45 | Thời gian kết thúc **≥ 14:30** |
 
 ```
+hasAto = startTime < 09:15
+hasAtc = endTime   ≥ 14:30
+
 clampedStart   = max(startTime, 09:15)
 clampedEnd     = min(endTime,   14:30)
 overlapLunch   = phần giao của [clampedStart, clampedEnd] với [11:30, 13:00]
 availableMin   = max(0, clampedEnd − clampedStart − overlapLunch)
 
-Số lần đẩy lệnh = floor(availableMin / Tần suất)     (tối thiểu 1 nếu availableMin > 0)
-KL phiên liên tục = REM BAL × %liên tục
-KL mỗi lệnh       = round(KL phiên liên tục / Số lần đẩy / 100) × 100   ← BỘI SỐ 100
+contCount  = floor(availableMin / Tần suất)
+totalCount = contCount + (hasAto?1:0) + (hasAtc?1:0)
+
+// Chẵn lô 100: nếu totalCount lệnh sẽ khiến 1 lệnh < 100 cổ phiếu, giảm số lệnh liên tục
+maxByLot100 = floor(REM BAL / 100)
+nếu totalCount > maxByLot100:
+    contCount  = maxByLot100 − (hasAto?1:0) − (hasAtc?1:0)
+    totalCount = contCount + (hasAto?1:0) + (hasAtc?1:0)
+    Tần suất hiệu lực = floor(availableMin / contCount)   ← hiển thị lại cho broker, kèm ghi chú "đã tự điều chỉnh"
+
+// Chia đều REM BAL cho MỌI lệnh trong kế hoạch (kể cả ATO/ATC)
+KL mỗi lệnh (trừ lệnh cuối) = floor(REM BAL / totalCount / 100) × 100
+KL lệnh cuối cùng (theo thời gian, ATC nếu có, ngược lại lệnh liên tục cuối)
+                            = REM BAL − KL mỗi lệnh × (totalCount − 1)   ← nhận phần dư, đảm bảo khớp đúng REM BAL
 ```
 
-> **Bắt buộc:** KL mỗi lệnh TWAP phải là **bội số của 100** (lô chẵn).
+> **Bắt buộc:** KL mỗi lệnh TWAP phải là **bội số của 100** (lô chẵn), kể cả lệnh ATO/ATC.
 
 ### 6.4. Validate khi xác nhận
 
 | Điều kiện | Thông báo |
 |---|---|
-| Thiếu giờ bắt đầu / kết thúc | "Vui lòng nhập Thời gian bắt đầu / kết thúc." |
-| Giờ kết thúc ≤ giờ bắt đầu | "Thời gian kết thúc phải sau Thời gian bắt đầu." |
-| Tần suất ≤ 0 | "Vui lòng nhập Tần suất (phút) hợp lệ." |
-| Không tick phiên nào | "Vui lòng chọn ít nhất 1 phiên phân bổ lệnh." |
-| Phiên đã tick nhưng % ≤ 0 | "Vui lòng nhập tỷ trọng % hợp lệ cho các phiên đã chọn." |
-| Tổng % ≠ 100 | "Tổng tỷ trọng % các phiên phải bằng 100% (hiện tại: X%)." |
+| Thiếu giờ bắt đầu / kết thúc / tần suất ≤ 0 | "Vui lòng nhập đầy đủ Thời gian bắt đầu/kết thúc/Tần suất hợp lệ." |
+| Giờ kết thúc ≤ giờ bắt đầu | (gộp vào thông báo trên) |
+| REM BAL không đủ 100 cổ phiếu cho ATO/ATC bắt buộc | "REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc." |
+| Khung giờ/Tần suất khiến tổng số lệnh = 0 | "Khung giờ/Tần suất không hợp lệ, không lập được kế hoạch." |
 
-**Sau khi xác nhận:** lưu cấu hình, `autoTwap` → `active` (nếu trước đó là `none`); nếu đang sửa cấu hình của lệnh `active`/`paused` thì **giữ nguyên trạng thái hiện tại**.
+**Sau khi xác nhận:** lưu cấu hình gồm `startTime, endTime, interval, effectiveInterval, plannedCount, plan[]` (mỗi phần tử: `seq, session, timeMin, qty`); `autoTwap` → `active` (nếu trước đó là `none`); nếu đang sửa cấu hình của lệnh `active`/`paused` thì **giữ nguyên trạng thái hiện tại**.
 
 ### 6.5. Sinh lệnh con tự động
 
@@ -483,12 +491,18 @@ Auto TWAP                            ✕
 │ Thời gian bắt đầu     09:00        │
 │ Thời gian kết thúc    11:00        │
 │ Tần suất              15 phút      │
-│ Phân bổ phiên         Liên tục 100%│
-│ Số lệnh theo kế hoạch 7 lệnh       │
+│ Số lệnh theo kế hoạch 8 lệnh       │
 │ Số lệnh đã sinh       3 lệnh       │ ← đếm lệnh con có người đặt = Auto Twap
 └────────────────────────────────────┘
+STT  Phiên       Thời gian dự kiến  KL kế hoạch  TT đẩy lệnh   TT khớp
+1    ATO         09:00              200          Đã đẩy       Khớp hết
+2    Liên tục    09:15              200          Đã đẩy       Khớp 1 phần
+3    Liên tục    09:30              200          Đã đẩy       Chưa khớp
+...  Liên tục    ...                200          Chưa đẩy     —
       [Sửa]      [Tạm dừng]
 ```
+
+**Bảng "Chi tiết kế hoạch đặt lệnh"**: mỗi dòng ứng với 1 lệnh trong `plan[]`. **TT đẩy lệnh** = "Đã đẩy" nếu đã có lệnh con `trader = Auto Twap` tương ứng (khớp theo thứ tự thời gian), ngược lại "Chưa đẩy". **TT khớp** = "—" nếu chưa đẩy; nếu đã đẩy thì map trạng thái lệnh con: `Đã gửi → "Chưa khớp"`, `Khớp 1 phần → "Khớp 1 phần"`, `Khớp hết → "Khớp hết"`.
 
 **Nút:**
 
@@ -510,13 +524,7 @@ Auto TWAP                            ✕
 
 ### 7.3. Tính lại kế hoạch khi bấm "Tiếp tục"
 
-Khi chuyển `paused` → `active`, hệ thống **tính lại số lệnh còn phải sinh** dựa trên **REM BAL hiện tại** (đã thay đổi do lệnh con khớp thêm hoặc do broker đặt tay trong lúc tạm dừng):
-
-```
-KL phiên liên tục còn lại = REM BAL hiện tại × %liên tục   (làm tròn bội số 100)
-Số lệnh còn lại = ceil(KL còn lại / KL mỗi lệnh)
-Số lệnh theo kế hoạch = Số lệnh còn lại + (ATO?1:0) + (ATC?1:0)
-```
+Khi chuyển `paused` → `active`, hệ thống **lập lại toàn bộ kế hoạch** bằng đúng công thức ở mục 6.3, dùng lại `startTime`/`endTime`/`interval` đã cài nhưng **REM BAL hiện tại** (đã thay đổi do lệnh con khớp thêm hoặc do broker đặt tay trong lúc tạm dừng). Kết quả (`effectiveInterval`, `plannedCount`, `plan[]`) ghi đè lên cấu hình cũ; các lệnh con Auto Twap đã sinh trước đó không bị xoá, chỉ được khớp lại theo thứ tự thời gian với `plan[]` mới ở màn hiển thị.
 
 ### 7.4. Tự động chuyển trạng thái
 
