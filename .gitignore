@@ -1,1 +1,6 @@
 .claude/
+
+# Bản Word của tài liệu yêu cầu — KHÔNG đưa vào repo.
+# YEU-CAU-DEV.md là nguồn duy nhất; giữ hai bản song song sẽ lệch nhau và DEV
+# đọc nhầm bản cũ. Cần bản Word để gửi ra ngoài thì xuất từ .md tại thời điểm gửi.
+YEU-CAU-DEV.docx

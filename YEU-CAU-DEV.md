@@ -2,6 +2,10 @@
 
 > Tài liệu đặc tả cho DEV, mô tả giao diện, tương tác người dùng và logic nghiệp vụ.
 > Bản prototype tham chiếu: `index.html` + `data.js` (chạy `npx serve -p 5179`).
+>
+> **File này là nguồn duy nhất.** Không giữ bản `.docx` song song trong repo — hai bản
+> sẽ lệch nhau và DEV đọc nhầm bản cũ. Cần bản Word để gửi ra ngoài thì xuất từ file này
+> tại thời điểm gửi.
 
 ---
 
