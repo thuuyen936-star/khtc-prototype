@@ -1481,11 +1481,13 @@
         if (cfg) {
           var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
           var result = computeAutoTwapPlan(timeToMinutes(cfg.startTime), timeToMinutes(cfg.endTime), cfg.interval, remBalNow);
-          if (!result.error) {
-            cfg.effectiveInterval = result.effectiveInterval;
-            cfg.plannedCount = result.totalCount;
-            cfg.plan = result.plan;
+          if (result.error) {
+            alert('Không thể Tiếp tục Auto TWAP: ' + result.error);
+            return;
           }
+          cfg.effectiveInterval = result.effectiveInterval;
+          cfg.plannedCount = result.totalCount;
+          cfg.plan = result.plan;
         }
       }
 
