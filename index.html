@@ -1047,7 +1047,7 @@
 
   <!-- ===== Modal: Xem lại cài đặt Auto TWAP (lệnh đã Hoạt động/Tạm dừng) ===== -->
   <div class="modal-overlay" id="modal-auto-twap-review" hidden>
-    <div class="modal-box" style="width:640px; max-width:94vw;">
+    <div class="modal-box" style="width:640px; max-width:94vw; max-height:88vh; overflow-y:auto;">
       <div class="modal-title-row">
         <span class="modal-title">Auto TWAP</span>
         <span class="modal-close" onclick="closeModal('modal-auto-twap-review')">✕</span>
@@ -1064,6 +1064,10 @@
         <div class="modal-kv-row"><label>Số lệnh kế hoạch còn lại</label><span id="twapview-planned"></span></div>
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
       </div>
+      <div class="modal-actions">
+        <button class="modal-btn confirm" id="twapview-edit-btn" onclick="editAutoTwapFromReview()">Sửa</button>
+        <button class="modal-btn confirm" id="twapview-toggle-btn" onclick="toggleAutoTwapPauseResume()">Tạm dừng</button>
+      </div>
       <div style="font-size:var(--fs-small);font-weight:600;color:var(--text-title);margin:14px 0 8px;">Lệnh đã đẩy</div>
       <div class="table-wrap">
         <table class="table-detail-fills">
@@ -1077,10 +1081,6 @@
           <thead><tr><th>STT</th><th>Phiên</th><th>Thời gian dự kiến</th><th>KL kế hoạch</th></tr></thead>
           <tbody id="twapview-plan-tbody"></tbody>
         </table>
-      </div>
-      <div class="modal-actions">
-        <button class="modal-btn confirm" id="twapview-edit-btn" onclick="editAutoTwapFromReview()">Sửa</button>
-        <button class="modal-btn confirm" id="twapview-toggle-btn" onclick="toggleAutoTwapPauseResume()">Tạm dừng</button>
       </div>
     </div>
   </div>

@@ -495,6 +495,7 @@ Auto TWAP                            ✕
 │ Số lệnh kế hoạch còn lại 5 lệnh    │
 │ Số lệnh đã sinh       3 lệnh       │ ← đếm lệnh con có người đặt = Auto Twap
 └────────────────────────────────────┘
+      [Sửa]      [Tạm dừng]
 ── Lệnh đã đẩy (3) ──────────────────
 STT  Thời gian đặt  KL đặt  KL khớp  Trạng thái
 1    09:00          200     200      Khớp hết
@@ -504,7 +505,6 @@ STT  Thời gian đặt  KL đặt  KL khớp  Trạng thái
 STT  Phiên       Thời gian dự kiến  KL kế hoạch
 1    Liên tục    09:45              300
 ...  Liên tục    ...                300
-      [Sửa]      [Tạm dừng]
 ```
 
 Màn hình hiển thị **2 bảng riêng biệt**, không gộp chung để tránh nhầm lẫn khối lượng:
@@ -514,6 +514,10 @@ Màn hình hiển thị **2 bảng riêng biệt**, không gộp chung để tr�
 - **"Kế hoạch còn lại"**: chính là `plan[]` hiện tại — theo định nghĩa, khối lượng này tính từ REM BAL
   hiện tại (đã trừ đi phần đã đẩy), nên không dòng nào ở đây trùng với bảng "Lệnh đã đẩy" cả về giờ lẫn
   khối lượng. Không có cột trạng thái đẩy/khớp vì không dòng nào đã đẩy.
+- **Nút "Sửa"/"Tạm dừng"/"Tiếp tục" đặt NGAY TRÊN 2 bảng** (không phải bên dưới) — vì kế hoạch có thể dài
+  (nhiều lệnh), đặt nút ở trên đảm bảo luôn thao tác được mà không cần cuộn xuống. Khung modal giới hạn
+  chiều cao (`max-height:88vh`) và tự cuộn dọc (`overflow-y:auto`) khi nội dung 2 bảng vượt quá khung
+  hình, thay vì tràn ra ngoài màn hình.
 
 **Nút:**
 
