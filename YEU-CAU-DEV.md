@@ -254,8 +254,8 @@ Số hiệu lệnh tổng: <orderId>
 │ Ghi chú                    [✏️ sửa]  │
 ├──────────────────────────────────────┤
 │ Chi tiết lệnh khớp:                   │
-│ Thời gian đặt│Thời gian khớp│Giá khớp│
-│ KL còn lại│Trạng thái                │
+│ Thời gian đặt│Thời gian khớp│KL đặt  │
+│ KL khớp│Giá khớp│KL còn lại│Trạng thái│
 └──────────────────────────────────────┘
 ```
 
@@ -265,8 +265,9 @@ Số hiệu lệnh tổng: <orderId>
 - `Rem Bal` và `Rem Placed` là **2 chỉ số khác nhau**, phải bind đúng dữ liệu tương ứng.
 - **Sửa Ghi chú:** click icon bút → chuyển thành input → Enter hoặc blur để lưu, Escape để hủy. **Sau khi lưu phải đồng bộ ngay ra cột "Ghi chú" của bảng lệnh tổng bên ngoài.**
 - **Bảng "Chi tiết lệnh khớp"** liệt kê **đúng các lệnh con thật** của lệnh tổng (không tách giả lập từ Fill Qty), và **chỉ những lệnh con đã có khối lượng khớp** — trạng thái `Khớp 1 phần` hoặc `Khớp hết`. Lệnh con `Đã gửi`, `Đã hủy`, `Đã sửa`, `Chờ xác nhận` không thuộc bảng này vì chưa phát sinh khớp thật. Không có lệnh nào khớp → hiện `Chưa có lệnh khớp`.
-- **5 cột theo đúng thứ tự:** Thời gian đặt → Thời gian khớp → Giá khớp → KL còn lại → Trạng thái. Không hiện KL đặt / KL khớp trong bảng này (đã có ở AVG PX/Fill Qty của lệnh tổng phía trên).
-- **Thời gian khớp** đọc từ trường mới `matchTime` của lệnh con (xem A3) — độc lập với `time` (thời gian đặt). Backend phải trả về **cả 2 mốc thời gian** cho lệnh con đã khớp.
+- **7 cột theo đúng thứ tự:** Thời gian đặt → Thời gian khớp → KL đặt → KL khớp → Giá khớp → KL còn lại → Trạng thái. Đây là số liệu **của riêng từng lệnh con**, khác với Qty/Fill Qty ở khối thông tin lệnh tổng phía trên (vốn là tổng hợp của cả lệnh tổng).
+- **Thời gian khớp** đọc từ trường `matchTime` của lệnh con (xem A3) — độc lập với `time` (thời gian đặt). Backend phải trả về **cả 2 mốc thời gian** cho lệnh con đã khớp.
+- **KL đặt** = `qty`, **KL khớp** = `matchQty` của chính lệnh con đó.
 - **Giá khớp** = giá đặt của lệnh con (`price`) vì đây là lệnh `LO`, khớp đúng giá đặt — không có giá khớp khác giá đặt trong phạm vi hiện tại.
 - **KL còn lại** = `qty − matchQty` của lệnh con đó (không phải Rem Bal/Rem Placed của lệnh tổng).
 

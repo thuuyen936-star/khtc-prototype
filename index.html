@@ -859,7 +859,7 @@
       <div class="table-wrap">
         <table class="table-detail-fills">
           <!-- Chỉ liệt kê lệnh con ĐÃ KHỚP (Khớp 1 phần / Khớp hết) — xem buildFillHistory() -->
-          <thead><tr><th>Thời gian đặt</th><th>Thời gian khớp</th><th>Giá khớp</th><th title="Khối lượng của lệnh con chưa khớp">KL còn lại</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Thời gian đặt</th><th>Thời gian khớp</th><th>KL đặt</th><th>KL khớp</th><th>Giá khớp</th><th title="Khối lượng của lệnh con chưa khớp">KL còn lại</th><th>Trạng thái</th></tr></thead>
           <tbody id="detail-fills-tbody"></tbody>
         </table>
       </div>
@@ -3012,7 +3012,7 @@
       );
 
       if (!children.length) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
         return;
       }
 
@@ -3020,10 +3020,13 @@
       children.forEach(function (r) {
         var placedTime = r.querySelector('.col-child-time').textContent.trim();
         var matchTime = r.dataset.matchtime || '';
+        var placedQty = r.querySelector('.col-child-qty').textContent.trim();
+        var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
         var price = formatPrice(parseQty(r.dataset.price)); // giá khớp = giá đặt (lệnh LO khớp đúng giá)
         var remain = r.querySelector('.col-child-remain').textContent.trim();
         var status = r.querySelector('.col-child-status').textContent.trim();
-        rows += '<tr><td>' + placedTime + '</td><td>' + matchTime + '</td><td class="mono">' +
+        rows += '<tr><td>' + placedTime + '</td><td>' + matchTime + '</td><td class="mono">' + placedQty +
+                '</td><td class="mono">' + matchQty + '</td><td class="mono">' +
                 price + '</td><td class="mono">' + remain + '</td><td>' + status + '</td></tr>';
       });
       tbody.innerHTML = rows;
