@@ -384,16 +384,6 @@
   .modal-kv-row input[type="time"], .modal-kv-row input[type="number"] {
     background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
     padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
-  .twap-session-row { display:flex; align-items:center; justify-content:space-between; padding:8px 0;
-    border-bottom:1px solid var(--border); font-size:var(--fs-small); }
-  .twap-session-row:last-of-type { border-bottom:none; margin-bottom:14px; }
-  .twap-session-row label { display:flex; align-items:center; gap:8px; color:var(--text-title); cursor:pointer; }
-  .twap-session-row input[type="checkbox"] { width:16px; height:16px; cursor:pointer; }
-  .twap-session-row input[type="number"] {
-    background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
-    padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); width:70px; text-align:right; }
-  .twap-session-row input[type="number"]:disabled { opacity:.4; cursor:not-allowed; }
-  .twap-session-row input[type="checkbox"]:disabled + * { opacity:.5; }
 
   /* ===== Modal: Detail (4) ===== */
   .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px 18px;
@@ -1029,30 +1019,18 @@
         <div class="modal-order-side" id="twap-header-side"></div>
       </div>
 
-      <div class="twap-section-title">Cấu hình chia lệnh</div>
+      <div class="twap-section-title">Cấu hình chia lệnh <span style="color:var(--text-dim);font-weight:400;">(REM BAL: <span id="twap-rembal"></span>)</span></div>
       <div class="modal-kv-group">
         <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="time" id="twap-start-time" oninput="onAutoTwapInputsChanged()"></div>
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="time" id="twap-end-time" oninput="onAutoTwapInputsChanged()"></div>
         <div class="modal-kv-row"><label>Tần suất (phút)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
       </div>
 
-      <div class="twap-section-title">Phân bổ lệnh theo phiên <span style="color:var(--text-dim);font-weight:400;">(REM BAL: <span id="twap-rembal"></span>)</span></div>
-      <div class="twap-session-row">
-        <label><input type="checkbox" id="twap-chk-continuous" onchange="onAutoTwapInputsChanged()"> Khớp lệnh liên tục</label>
-        <input type="number" min="0" max="100" id="twap-pct-continuous" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
-      </div>
-      <div class="twap-session-row">
-        <label><input type="checkbox" id="twap-chk-ato" onchange="onAutoTwapInputsChanged()"> ATO</label>
-        <input type="number" min="0" max="100" id="twap-pct-ato" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
-      </div>
-      <div class="twap-session-row">
-        <label><input type="checkbox" id="twap-chk-atc" onchange="onAutoTwapInputsChanged()"> ATC</label>
-        <input type="number" min="0" max="100" id="twap-pct-atc" placeholder="%" disabled oninput="onAutoTwapInputsChanged()">
-      </div>
-
-      <div class="modal-kv-group" style="margin-top:12px;">
-        <div class="modal-kv-row"><label>Số lần đẩy lệnh (phiên liên tục)</label><span id="twap-preview-count">—</span></div>
-        <div class="modal-kv-row"><label>KL mỗi lệnh (phiên liên tục)</label><span id="twap-preview-qty">—</span></div>
+      <div class="twap-section-title">Dự kiến</div>
+      <div class="modal-kv-group">
+        <div class="modal-kv-row"><label>Số lệnh</label><span id="twap-preview-count">—</span></div>
+        <div class="modal-kv-row"><label>KL mỗi lệnh</label><span id="twap-preview-qty">—</span></div>
+        <div class="modal-kv-row"><label>Tần suất hiệu lực</label><span id="twap-preview-interval">—</span></div>
       </div>
 
       <div id="twap-error" style="color:var(--sell);font-size:var(--fs-small);min-height:16px;margin-top:8px;"></div>
@@ -1322,57 +1300,42 @@
       document.getElementById('twap-start-time').value = existingConfig ? existingConfig.startTime : defaultStart;
       document.getElementById('twap-end-time').value = existingConfig ? existingConfig.endTime : '';
       document.getElementById('twap-interval').value = existingConfig ? existingConfig.interval : '';
-      ['continuous', 'ato', 'atc'].forEach(function (key) {
-        var pct = existingConfig && existingConfig.sessions[key] ? existingConfig.sessions[key] : null;
-        var chk = document.getElementById('twap-chk-' + key);
-        var pctEl = document.getElementById('twap-pct-' + key);
-        chk.checked = !!pct;
-        chk.disabled = false;
-        pctEl.value = pct || '';
-        pctEl.disabled = !chk.checked;
-      });
       document.getElementById('twap-error').textContent = '';
       onAutoTwapInputsChanged();
       openModal('modal-auto-twap');
     }
 
-    // Chạy lại mỗi khi người dùng đổi input trong modal: khóa ATO nếu Start Time > 9h15, bật/tắt các ô
-    // % theo checkbox tương ứng, rồi tính lại preview.
     function onAutoTwapInputsChanged() {
-      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
-      var atoChk = document.getElementById('twap-chk-ato');
-      var atoBlocked = startMin !== null && startMin > TWAP_ATO_END;
-      atoChk.disabled = atoBlocked;
-      if (atoBlocked && atoChk.checked) atoChk.checked = false;
-
-      ['continuous', 'ato', 'atc'].forEach(function (key) {
-        document.getElementById('twap-pct-' + key).disabled = !document.getElementById('twap-chk-' + key).checked;
-      });
-
       recalcAutoTwapPreview();
     }
 
     function recalcAutoTwapPreview() {
       var countEl = document.getElementById('twap-preview-count');
       var qtyEl = document.getElementById('twap-preview-qty');
-      var contChecked = document.getElementById('twap-chk-continuous').checked;
+      var intervalEl = document.getElementById('twap-preview-interval');
+
       var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
       var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
+      var remBal = parseQty(document.getElementById('twap-rembal').textContent);
 
-      if (!contChecked || startMin === null || endMin === null || interval <= 0) {
+      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
+      if (result.error) {
         countEl.textContent = '—';
         qtyEl.textContent = '—';
+        intervalEl.textContent = '—';
         return;
       }
 
-      var pushCount = computeTwapPushCount(startMin, endMin, interval);
-      var remBal = parseQty(document.getElementById('twap-rembal').textContent);
-      var contPct = parseFloat(document.getElementById('twap-pct-continuous').value) || 0;
-      var perPushQty = computeTwapPerPushQty(pushCount, remBal, contPct);
-
-      countEl.textContent = pushCount || '—';
-      qtyEl.textContent = perPushQty > 0 ? formatQty(perPushQty) : '—';
+      var parts = [];
+      if (result.ato) parts.push('1 ATO');
+      if (result.contCount > 0) parts.push(result.contCount + ' liên tục');
+      if (result.atc) parts.push('1 ATC');
+      countEl.textContent = parts.join(' + ') + ' = ' + result.totalCount + ' lệnh';
+      qtyEl.textContent = formatQty(result.perOrderQty) +
+        (result.lastOrderQty !== result.perOrderQty ? ' (lệnh cuối: ' + formatQty(result.lastOrderQty) + ')' : '');
+      intervalEl.textContent = result.effectiveInterval === null ? '—' :
+        (result.effectiveInterval + ' phút' + (result.adjusted ? ' (đã tự điều chỉnh)' : ''));
     }
 
     function confirmAutoTwapSetup() {
@@ -1382,45 +1345,21 @@
       var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
       var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
+      var remBal = parseQty(document.getElementById('twap-rembal').textContent);
+      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
 
-      if (startMin === null) { errorEl.textContent = 'Vui lòng nhập Thời gian bắt đầu.'; return; }
-      if (endMin === null) { errorEl.textContent = 'Vui lòng nhập Thời gian kết thúc.'; return; }
-      if (endMin <= startMin) { errorEl.textContent = 'Thời gian kết thúc phải sau Thời gian bắt đầu.'; return; }
-      if (interval <= 0) { errorEl.textContent = 'Vui lòng nhập Tần suất (phút) hợp lệ.'; return; }
-
-      var sessionKeys = ['continuous', 'ato', 'atc'];
-      var checkedSessions = sessionKeys.filter(function (key) { return document.getElementById('twap-chk-' + key).checked; });
-      if (!checkedSessions.length) { errorEl.textContent = 'Vui lòng chọn ít nhất 1 phiên phân bổ lệnh.'; return; }
-
-      var totalPct = 0;
-      var sessions = {};
-      for (var i = 0; i < checkedSessions.length; i++) {
-        var key = checkedSessions[i];
-        var pct = parseFloat(document.getElementById('twap-pct-' + key).value) || 0;
-        if (pct <= 0) { errorEl.textContent = 'Vui lòng nhập tỷ trọng % hợp lệ cho các phiên đã chọn.'; return; }
-        sessions[key] = pct;
-        totalPct += pct;
-      }
-      if (Math.round(totalPct) !== 100) {
-        errorEl.textContent = 'Tổng tỷ trọng % các phiên phải bằng 100% (hiện tại: ' + totalPct + '%).';
-        return;
-      }
+      if (result.error) { errorEl.textContent = result.error; return; }
 
       var tr = document.getElementById('row-' + twapTargetOrderId);
       if (!tr) { closeModal('modal-auto-twap'); return; }
-
-      var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
-      var pushCount = sessions.continuous ? computeTwapPushCount(startMin, endMin, interval) : 0;
-      var perPushQty = sessions.continuous ? computeTwapPerPushQty(pushCount, remBal, sessions.continuous) : 0;
-      var plannedCount = pushCount + (sessions.ato ? 1 : 0) + (sessions.atc ? 1 : 0);
 
       autoTwapConfigs[twapTargetOrderId] = {
         startTime: document.getElementById('twap-start-time').value,
         endTime: document.getElementById('twap-end-time').value,
         interval: interval,
-        sessions: sessions,
-        perPushQty: perPushQty,
-        plannedCount: plannedCount
+        effectiveInterval: result.effectiveInterval,
+        plannedCount: result.totalCount,
+        plan: result.plan
       };
 
       // Lần cài đầu tiên (đang None) mới bật Hoạt động; sửa cấu hình của lệnh đang active/paused thì
