@@ -1044,7 +1044,7 @@
 
   <!-- ===== Modal: Xem lại cài đặt Auto TWAP (lệnh đã Hoạt động/Tạm dừng) ===== -->
   <div class="modal-overlay" id="modal-auto-twap-review" hidden>
-    <div class="modal-box" style="max-width:440px;">
+    <div class="modal-box" style="width:640px; max-width:94vw;">
       <div class="modal-title-row">
         <span class="modal-title">Auto TWAP</span>
         <span class="modal-close" onclick="closeModal('modal-auto-twap-review')">✕</span>
@@ -1058,9 +1058,15 @@
         <div class="modal-kv-row"><label>Thời gian bắt đầu</label><span id="twapview-start"></span></div>
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><span id="twapview-end"></span></div>
         <div class="modal-kv-row"><label>Tần suất</label><span id="twapview-interval"></span></div>
-        <div class="modal-kv-row"><label>Phân bổ phiên</label><span id="twapview-sessions"></span></div>
         <div class="modal-kv-row"><label>Số lệnh theo kế hoạch</label><span id="twapview-planned"></span></div>
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
+      </div>
+      <div style="font-size:var(--fs-small);font-weight:600;color:var(--text-title);margin:14px 0 8px;">Chi tiết kế hoạch đặt lệnh</div>
+      <div class="table-wrap">
+        <table class="table-detail-fills">
+          <thead><tr><th>STT</th><th>Phiên</th><th>Thời gian dự kiến</th><th>KL kế hoạch</th><th>TT đẩy lệnh</th><th>TT khớp</th></tr></thead>
+          <tbody id="twapview-plan-tbody"></tbody>
+        </table>
       </div>
       <div class="modal-actions">
         <button class="modal-btn confirm" onclick="editAutoTwapFromReview()">Sửa</button>
@@ -1147,7 +1153,7 @@
     // Auto TWAP: none (chưa cài đặt) / active (Hoạt động) / paused (Tạm dừng)
     var AUTOTWAP_LABEL = { active: 'Hoạt động', paused: 'Tạm dừng', cancelled: 'Đã hủy', none: 'None' };
     var AUTOTWAP_BADGE = { active: 'badge-matched', paused: 'badge-awaiting', cancelled: 'badge-cancelled', none: 'badge-none' };
-    var autoTwapConfigs = {}; // orderId -> { startTime, endTime, interval, sessions:{continuous,ato,atc}, perPushQty, plannedCount }
+    var autoTwapConfigs = {}; // orderId -> { startTime, endTime, interval, effectiveInterval, plannedCount, plan:[{seq,session,timeMin,qty}] }
     function autoTwapCellHtml(state) {
       var s = (state === 'active' || state === 'paused' || state === 'cancelled') ? state : 'none';
       return '<span class="col-autotwap ' + AUTOTWAP_BADGE[s] + '">' + AUTOTWAP_LABEL[s] + '</span>';
@@ -1382,6 +1388,45 @@
       }
     }
 
+    var TWAP_MATCH_LABEL = { 'Đã gửi': 'Chưa khớp', 'Khớp 1 phần': 'Khớp 1 phần', 'Khớp hết': 'Khớp hết', 'Đã hủy': 'Đã hủy' };
+    var TWAP_MATCH_BADGE = { 'Đã gửi': 'badge-sent', 'Khớp 1 phần': 'badge-part', 'Khớp hết': 'badge-matched', 'Đã hủy': 'badge-cancelled' };
+
+    // Mỗi dòng trong cfg.plan (đã sắp theo thời gian) khớp vị trí với lệnh con "Auto Twap" đã sinh,
+    // sau khi các lệnh con đó được sắp lại theo thời gian đặt — để không phụ thuộc thứ tự hiện có
+    // trên DOM (bảng lệnh con có thể bị người dùng sắp xếp lại cột).
+    function renderAutoTwapPlanTable(orderId, cfg) {
+      var tbody = document.getElementById('twapview-plan-tbody');
+      if (!cfg || !cfg.plan || !cfg.plan.length) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có kế hoạch</td></tr>';
+        return;
+      }
+      var generatedRows = Array.prototype.filter.call(
+        document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]'),
+        function (r) { return r.querySelector('.col-child-trader').textContent.trim() === 'Auto Twap'; }
+      ).sort(function (a, b) {
+        return a.querySelector('.col-child-time').textContent.trim().localeCompare(b.querySelector('.col-child-time').textContent.trim());
+      });
+
+      var rows = '';
+      cfg.plan.forEach(function (p, i) {
+        var generated = generatedRows[i];
+        var pushLabel = generated ? 'Đã đẩy' : 'Chưa đẩy';
+        var pushBadge = generated ? 'badge-sent' : 'badge-awaiting';
+        var matchCell = '—';
+        if (generated) {
+          var childStatus = generated.querySelector('.col-child-status').textContent.trim();
+          var matchLabel = TWAP_MATCH_LABEL[childStatus] || childStatus;
+          var matchBadge = TWAP_MATCH_BADGE[childStatus] || '';
+          matchCell = '<span class="col-child-status ' + matchBadge + '">' + matchLabel + '</span>';
+        }
+        rows += '<tr><td>' + (i + 1) + '</td><td>' + TWAP_SESSION_LABEL[p.session] + '</td><td>' +
+          minutesToTimeStr(p.timeMin) + '</td><td class="mono">' + formatQty(p.qty) + '</td>' +
+          '<td><span class="col-child-status ' + pushBadge + '">' + pushLabel + '</span></td>' +
+          '<td>' + matchCell + '</td></tr>';
+      });
+      tbody.innerHTML = rows;
+    }
+
     // ===== Xem lại cài đặt Auto TWAP (khi lệnh tổng đã active/paused) =====
     function openAutoTwapReview(tr) {
       twapTargetOrderId = tr.dataset.orderId;
@@ -1399,17 +1444,13 @@
       var cfg = autoTwapConfigs[twapTargetOrderId] || null;
       document.getElementById('twapview-start').textContent = cfg ? cfg.startTime : '—';
       document.getElementById('twapview-end').textContent = cfg ? cfg.endTime : '—';
-      document.getElementById('twapview-interval').textContent = cfg ? (cfg.interval + ' phút') : '—';
-
-      var sessionParts = [];
-      if (cfg) {
-        if (cfg.sessions.continuous) sessionParts.push('Liên tục ' + cfg.sessions.continuous + '%');
-        if (cfg.sessions.ato) sessionParts.push('ATO ' + cfg.sessions.ato + '%');
-        if (cfg.sessions.atc) sessionParts.push('ATC ' + cfg.sessions.atc + '%');
-      }
-      document.getElementById('twapview-sessions').textContent = sessionParts.length ? sessionParts.join(', ') : '—';
+      document.getElementById('twapview-interval').textContent = cfg
+        ? (cfg.effectiveInterval + ' phút' + (cfg.effectiveInterval !== cfg.interval ? ' (đã tự điều chỉnh)' : ''))
+        : '—';
       document.getElementById('twapview-planned').textContent = (cfg ? cfg.plannedCount : 0) + ' lệnh';
       document.getElementById('twapview-generated').textContent = countAutoTwapGeneratedOrders(twapTargetOrderId) + ' lệnh';
+
+      renderAutoTwapPlanTable(twapTargetOrderId, cfg);
 
       var toggleBtn = document.getElementById('twapview-toggle-btn');
       toggleBtn.textContent = state === 'active' ? 'Tạm dừng' : 'Tiếp tục';
@@ -1437,11 +1478,14 @@
 
       if (next === 'active') {
         var cfg = autoTwapConfigs[twapTargetOrderId];
-        if (cfg && cfg.sessions.continuous && cfg.perPushQty > 0) {
+        if (cfg) {
           var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
-          var contTotalQtyNow = Math.round(remBalNow * cfg.sessions.continuous / 100 / 100) * 100;
-          var remainingContCount = contTotalQtyNow > 0 ? Math.max(1, Math.ceil(contTotalQtyNow / cfg.perPushQty)) : 0;
-          cfg.plannedCount = remainingContCount + (cfg.sessions.ato ? 1 : 0) + (cfg.sessions.atc ? 1 : 0);
+          var result = computeAutoTwapPlan(timeToMinutes(cfg.startTime), timeToMinutes(cfg.endTime), cfg.interval, remBalNow);
+          if (!result.error) {
+            cfg.effectiveInterval = result.effectiveInterval;
+            cfg.plannedCount = result.totalCount;
+            cfg.plan = result.plan;
+          }
         }
       }
 
@@ -3425,21 +3469,21 @@
     });
 
     // Cấu hình Auto TWAP mẫu cho các lệnh tổng đang Hoạt động/Tạm dừng — dùng cho màn "Xem lại cài đặt"
-    function seedAutoTwapConfig(orderId, startTime, endTime, interval, contPct) {
+    function seedAutoTwapConfig(orderId, startTime, endTime, interval) {
       var tr = document.getElementById('row-' + orderId);
       if (!tr) return;
       var startMin = timeToMinutes(startTime), endMin = timeToMinutes(endTime);
       var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
-      var pushCount = computeTwapPushCount(startMin, endMin, interval);
-      var perPushQty = computeTwapPerPushQty(pushCount, remBal, contPct);
+      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
+      if (result.error) return;
       autoTwapConfigs[orderId] = {
         startTime: startTime, endTime: endTime, interval: interval,
-        sessions: { continuous: contPct }, perPushQty: perPushQty, plannedCount: pushCount
+        effectiveInterval: result.effectiveInterval, plannedCount: result.totalCount, plan: result.plan
       };
     }
-    seedAutoTwapConfig('LT20260615-01', '13:30', '14:15', 15, 100); // Hoạt động — Mua HPG
-    seedAutoTwapConfig('LT20260615-02', '10:00', '11:00', 15, 100); // Tạm dừng — Bán FPT
-    seedAutoTwapConfig('LT20260619-01', '09:00', '11:00', 15, 100); // Hoạt động — Bán MWG
+    seedAutoTwapConfig('LT20260615-01', '13:30', '14:15', 15); // Hoạt động — Mua HPG, REM BAL 1,900
+    seedAutoTwapConfig('LT20260615-02', '10:00', '11:00', 15); // Tạm dừng — Bán FPT, REM BAL 500
+    seedAutoTwapConfig('LT20260619-01', '09:00', '11:00', 15); // Hoạt động — Bán MWG, REM BAL 1,600
 
     // Mục 1: gắn sort cho header 2 bảng
     bindSortableHeaders('bbg-thead', 'bbg-tbody');
