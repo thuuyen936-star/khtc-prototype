@@ -492,26 +492,36 @@ Auto TWAP                            ✕
 │ Thời gian bắt đầu     09:00        │
 │ Thời gian kết thúc    11:00        │
 │ Tần suất              15 phút      │
-│ Số lệnh theo kế hoạch 8 lệnh       │
+│ Số lệnh kế hoạch còn lại 5 lệnh    │
 │ Số lệnh đã sinh       3 lệnh       │ ← đếm lệnh con có người đặt = Auto Twap
 └────────────────────────────────────┘
-STT  Phiên       Thời gian dự kiến  KL kế hoạch  TT đẩy lệnh   TT khớp
-1    ATO         09:00              200          Đã đẩy       Khớp hết
-2    Liên tục    09:15              200          Đã đẩy       Khớp 1 phần
-3    Liên tục    09:30              200          Đã đẩy       Chưa khớp
-...  Liên tục    ...                200          Chưa đẩy     —
+── Lệnh đã đẩy (3) ──────────────────
+STT  Thời gian đặt  KL đặt  KL khớp  Trạng thái
+1    09:00          200     200      Khớp hết
+2    09:15          200     100      Khớp 1 phần
+3    09:30          200     0        Đã gửi
+── Kế hoạch còn lại (5) ─────────────
+STT  Phiên       Thời gian dự kiến  KL kế hoạch
+1    Liên tục    09:45              300
+...  Liên tục    ...                300
       [Sửa]      [Tạm dừng]
 ```
 
-**Bảng "Chi tiết kế hoạch đặt lệnh"**: mỗi dòng ứng với 1 lệnh trong `plan[]`. **TT đẩy lệnh** = "Đã đẩy" nếu đã có lệnh con `trader = Auto Twap` tương ứng (khớp theo thứ tự thời gian), ngược lại "Chưa đẩy". **TT khớp** = "—" nếu chưa đẩy; nếu đã đẩy thì map trạng thái lệnh con: `Đã gửi → "Chưa khớp"`, `Khớp 1 phần → "Khớp 1 phần"`, `Khớp hết → "Khớp hết"`.
+Màn hình hiển thị **2 bảng riêng biệt**, không gộp chung để tránh nhầm lẫn khối lượng:
+
+- **"Lệnh đã đẩy"**: liệt kê trực tiếp các lệnh con `trader = Auto Twap` đã có thật (sắp theo thời gian
+  đặt), kèm KL đặt/KL khớp/Trạng thái của từng lệnh — không suy diễn hay khớp vị trí với kế hoạch.
+- **"Kế hoạch còn lại"**: chính là `plan[]` hiện tại — theo định nghĩa, khối lượng này tính từ REM BAL
+  hiện tại (đã trừ đi phần đã đẩy), nên không dòng nào ở đây trùng với bảng "Lệnh đã đẩy" cả về giờ lẫn
+  khối lượng. Không có cột trạng thái đẩy/khớp vì không dòng nào đã đẩy.
 
 **Nút:**
 
 | Nút | Màu | Hành vi |
 |---|---|---|
-| **Sửa** | primary (xanh dương) | Mở lại màn cài đặt, **điền sẵn cấu hình cũ**; lưu xong giữ nguyên trạng thái active/paused |
+| **Sửa** | primary (xanh dương) | Mở lại màn cài đặt, **điền sẵn cấu hình cũ**; lưu xong giữ nguyên trạng thái active/paused. **Khoá (disabled)** nếu giờ máy hiện tại **≥ 14:30** (đã vào phiên ATC, không còn phiên liên tục nào để chỉnh), kèm tooltip giải thích. |
 | **Tạm dừng** | gradient **vàng warning**, chữ trắng | Chỉ hiện khi đang `active` → chuyển `paused` |
-| **Tiếp tục** | gradient **xanh lá** | Chỉ hiện khi đang `paused` → chuyển `active` + **tính lại kế hoạch** |
+| **Tiếp tục** | gradient **xanh lá** | Chỉ hiện khi đang `paused` → chuyển `active` + **tính lại kế hoạch còn lại** (xem 7.3) |
 
 > Màn này **không có nút "Đóng"** ở hàng action (chỉ dùng dấu ✕ ở góc).
 
@@ -525,7 +535,22 @@ STT  Phiên       Thời gian dự kiến  KL kế hoạch  TT đẩy lệnh   T
 
 ### 7.3. Tính lại kế hoạch khi bấm "Tiếp tục"
 
-Khi chuyển `paused` → `active`, hệ thống **lập lại toàn bộ kế hoạch** bằng đúng công thức ở mục 6.3, dùng lại `startTime`/`endTime`/`interval` đã cài nhưng **REM BAL hiện tại** (đã thay đổi do lệnh con khớp thêm hoặc do broker đặt tay trong lúc tạm dừng). Kết quả (`effectiveInterval`, `plannedCount`, `plan[]`) ghi đè lên cấu hình cũ; các lệnh con Auto Twap đã sinh trước đó không bị xoá, chỉ được khớp lại theo thứ tự thời gian với `plan[]` mới ở màn hiển thị.
+**Kế hoạch còn lại CHỈ được tính lại khi bấm "Tiếp tục"** (không tính lại ở bất kỳ thời điểm nào khác —
+kể cả khi mở lại màn quản lý nhiều lần). Khi chuyển `paused` → `active`, hệ thống lập lại kế hoạch bằng
+đúng công thức ở mục 6.3, dùng lại `startTime`/`endTime`/`interval` đã cài, **REM BAL hiện tại** (đã thay
+đổi do lệnh con khớp thêm hoặc do broker đặt tay trong lúc tạm dừng), nhưng với một điểm khác biệt quan
+trọng: **mốc bắt đầu lập kế hoạch không phải là `startTime` đã cấu hình, mà là giờ máy thật tại thời điểm
+bấm "Tiếp tục"** (lấy giá trị lớn hơn giữa hai mốc đó). Các lệnh Auto Twap đã đẩy trước thời điểm này giữ
+nguyên không đổi — đây là hành động sống, xảy ra tại 1 thời điểm thực, nên không hợp lý nếu kế hoạch mới
+lại chứa các mốc giờ đã trôi qua.
+
+Nếu lệnh ATC (chỉ có đúng 1 lệnh mỗi ngày) đã được đẩy trước đó, kế hoạch tính lại **không** lập thêm một
+lệnh ATC nữa. Kết quả (`effectiveInterval`, `plannedCount`, `plan[]`) ghi đè lên cấu hình cũ; các lệnh con
+Auto Twap đã sinh trước đó không bị xoá — luôn hiển thị nguyên vẹn ở bảng "Lệnh đã đẩy" (mục 7.1).
+
+> Dữ liệu mẫu (`seedAutoTwapConfig`) là ngoại lệ: vì không qua thao tác "Tiếp tục" thật, kế hoạch còn lại
+> của dữ liệu mẫu được suy ra thuần từ lịch sử lệnh con đã đẩy (bắt đầu ngay sau lệnh gần nhất, theo đúng
+> nhịp `interval`) thay vì theo giờ máy thật — để bản demo luôn hiển thị nhất quán bất kể lúc nào mở lên.
 
 ### 7.4. Tự động chuyển trạng thái
 
