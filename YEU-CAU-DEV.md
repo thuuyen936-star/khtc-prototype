@@ -226,10 +226,13 @@ Màu header: các cột **Fill Qty → Số hiệu lệnh** màu xanh dương (n
 
 **Tab:** `Sổ lệnh con trong ngày` | `Danh mục chứng khoán`. Tab đang chọn có **vạch chỉ báo phía trên**, màu title, nằm sát mép trên của container.
 
-**13 cột:** Thao tác (`Sửa` / `Hủy` + checkbox hủy hàng loạt) → Tài khoản → Tài khoản BBG → Mã CK → Thời gian → Lệnh → Trạng thái → Kiểu lệnh → **Người đặt** → KL đặt → Giá đặt → KL khớp → KL còn lại
+**14 cột:** Thao tác (`Sửa` / `Hủy` + checkbox hủy hàng loạt) → Tài khoản → Tài khoản BBG → Mã CK → Thời gian → Lệnh → Trạng thái → Kiểu lệnh → **Người đặt** → KL đặt → Giá đặt → **Giá khớp** → KL khớp → KL còn lại
 
 - **Người đặt**: nếu là `Auto Twap` → hiển thị badge **màu tím**; nếu là user thường → chữ thường.
+- **Giá khớp**: để trống nếu chưa khớp. Lệnh LO thủ công = giá đặt; lệnh Auto Twap = giá thị trường mô phỏng (xem mục 6.3).
 - Nút `Sửa`/`Hủy` bị disabled khi lệnh con ở trạng thái `Đã hủy`, `Đã sửa`, `Khớp hết`, `Chờ xác nhận`.
+- **Hủy lệnh con (đơn lẻ hoặc hàng loạt) bị khóa nếu Auto TWAP của lệnh tổng đang "Hoạt động"** — phải bấm "Tạm dừng" trước, tương tự quy tắc đã áp dụng cho đặt lệnh con thủ công (xem mục 7.2).
+- **Dòng "Tổng cộng" cố định cuối bảng** (dính đáy khi cuộn, giống `thead` dính đỉnh): tổng KL đặt/KL khớp/KL còn lại tính theo **các dòng đang hiển thị** — tức là theo lệnh tổng đang chọn và bộ lọc tìm kiếm cột hiện tại, không phải tổng toàn bộ dữ liệu.
 - Có nút mở rộng panel toàn màn hình.
 
 ---
@@ -265,11 +268,12 @@ Số hiệu lệnh tổng: <orderId>
 - `Rem Bal` và `Rem Placed` là **2 chỉ số khác nhau**, phải bind đúng dữ liệu tương ứng.
 - **Sửa Ghi chú:** click icon bút → chuyển thành input → Enter hoặc blur để lưu, Escape để hủy. **Sau khi lưu phải đồng bộ ngay ra cột "Ghi chú" của bảng lệnh tổng bên ngoài.**
 - **Bảng "Chi tiết lệnh khớp"** liệt kê **đúng các lệnh con thật** của lệnh tổng (không tách giả lập từ Fill Qty), và **chỉ những lệnh con đã có khối lượng khớp** — trạng thái `Khớp 1 phần` hoặc `Khớp hết`. Lệnh con `Đã gửi`, `Đã hủy`, `Đã sửa`, `Chờ xác nhận` không thuộc bảng này vì chưa phát sinh khớp thật. Không có lệnh nào khớp → hiện `Chưa có lệnh khớp`.
-- **7 cột theo đúng thứ tự:** Thời gian đặt → Thời gian khớp → KL đặt → KL khớp → Giá khớp → KL còn lại → Trạng thái. Đây là số liệu **của riêng từng lệnh con**, khác với Qty/Fill Qty ở khối thông tin lệnh tổng phía trên (vốn là tổng hợp của cả lệnh tổng).
+- **7 cột theo đúng thứ tự:** Thời gian đặt → Thời gian khớp → KL đặt → KL khớp → Giá khớp → KL còn lại → Trạng thái.
+- **Sắp xếp các dòng theo Thời gian khớp tăng dần** (không phải thời gian đặt) — đúng trình tự lệnh khớp thực tế xảy ra.
 - **Thời gian khớp** đọc từ trường `matchTime` của lệnh con (xem A3) — độc lập với `time` (thời gian đặt). Backend phải trả về **cả 2 mốc thời gian** cho lệnh con đã khớp.
 - **KL đặt** = `qty`, **KL khớp** = `matchQty` của chính lệnh con đó.
-- **Giá khớp** = giá đặt của lệnh con (`price`) vì đây là lệnh `LO`, khớp đúng giá đặt — không có giá khớp khác giá đặt trong phạm vi hiện tại.
-- **KL còn lại** = `qty − matchQty` của lệnh con đó (không phải Rem Bal/Rem Placed của lệnh tổng).
+- **Giá khớp**: lệnh `LO` thủ công khớp đúng giá đặt; lệnh Auto Twap khớp tại giá thị trường mô phỏng, có thể khác giá đặt và khác nhau giữa các lệnh (xem mục 6.3).
+- **KL còn lại** = `Rem Bal + Rem Placed` của **cả lệnh tổng** ngay **sau** lần khớp này, không phải KL còn lại riêng của lệnh con đó. Công thức: `Qty − (tổng KL khớp cộng dồn của mọi lệnh con trong bảng, tính đến và bao gồm dòng này, theo thứ tự thời gian khớp)`. Cho biết lệnh tổng còn lại bao nhiêu tại từng mốc khớp trong lịch sử.
 
 ---
 
@@ -307,14 +311,18 @@ Nút `ACK` dùng chung cho 3 tình huống, **enable khi lệnh đang chọn ở
 | `Chờ xác nhận sửa` | Popup "Xác nhận sửa lệnh tổng" | → `Đã gửi` **+ nếu Auto TWAP đang `active` → tự chuyển `paused`** (xem mục 7.4) |
 | `Chờ xác nhận hủy` | Popup "Hủy lệnh từ FixNet" | → `Đã hủy` + hủy toàn bộ lệnh con + Auto TWAP → `cancelled` |
 
-`REJECT` chỉ enable với `Chờ xác nhận đặt` → chuyển `Từ chối`.
+`REJECT` enable với cả 3 trạng thái chờ xác nhận, nhưng **kết quả khác nhau theo ý nghĩa**:
+- `Chờ xác nhận đặt`: từ chối cả lệnh mới → chuyển hẳn `Từ chối` (vòng đời kết thúc).
+- `Chờ xác nhận sửa` / `Chờ xác nhận hủy`: chỉ từ chối **yêu cầu** sửa/hủy — lệnh gốc vẫn còn hiệu lực,
+  quay lại đúng trạng thái theo tiến độ khớp hiện tại (`Đã gửi` nếu chưa khớp gì, `Khớp 1 phần` nếu khớp
+  một phần, `Khớp hết` nếu đã khớp hết) — cùng công thức suy trạng thái đang dùng ở mục A5.
 
 **Ma trận enable nút toolbar theo trạng thái:**
 
 | Trạng thái | ACK | REJECT | Sửa lệnh tổng | Huỷ Fix Net | Done 4 Day | Detail |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
 | Chờ xác nhận đặt | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Chờ xác nhận sửa/hủy | ✅ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Chờ xác nhận sửa/hủy | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Chờ xử lý | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Đã gửi / Khớp 1 phần | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | **Khớp hết / Đã hủy / Từ chối** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -367,7 +375,7 @@ Bấm `Huỷ từ Fix Net` → popup "**Hủy lệnh từ FixNet**" (tiêu đề
 
 **Popup xác nhận** hiển thị: Mã CK, Mua/Bán, KL, Giá đặt, Giá trị, **Giá TB dự kiến** (bình quân gia quyền các lệnh con còn hiệu lực + lệnh đang đặt).
 
-**Sau khi tạo:** lệnh con `Đã gửi`, người đặt = user hiện tại; **nếu lệnh tổng đang `Chờ xử lý` → tự chuyển `Đã gửi`**; tính lại toàn bộ chỉ số tổng hợp.
+**Sau khi tạo:** lệnh con `Đã gửi`, người đặt = user hiện tại; **nếu lệnh tổng đang `Chờ xử lý` → tự chuyển `Đã gửi`**; tính lại toàn bộ chỉ số tổng hợp. **Sau khi xác nhận xong, tự bỏ chọn lệnh tổng** (đưa khung đặt lệnh về trạng thái khóa) — khác với luồng Sửa lệnh con (5.2), vốn giữ nguyên lệnh tổng đang chọn.
 
 ### 5.2. Sửa lệnh con
 
@@ -382,6 +390,9 @@ Khi bấm `Sửa` lệnh con, phải **tự tắt** trạng thái đang bật c�
 
 ### 5.3. Hủy lệnh con
 
+- **Điều kiện:** Auto TWAP của lệnh tổng **không** ở trạng thái `active` — nếu đang `Hoạt động`, cả hủy
+  đơn lẻ lẫn hủy hàng loạt đều bị chặn (thông báo yêu cầu Tạm dừng Auto TWAP trước), tương tự điều kiện
+  đặt lệnh con thủ công (5.1).
 - **Hủy đơn lẻ:** bấm `Hủy` → popup xác nhận (header Mã CK + Mua/Bán, nút `Xác nhận hủy Mua/Bán`) → lệnh con → `Đã hủy`, KL còn lại = 0.
 - **Hủy hàng loạt:** bật chế độ tick chọn nhiều dòng → popup tổng hợp (Tài khoản, Tiểu khoản, Mã CK, **Số lượng lệnh hủy**, **Tổng KL hủy**) → xác nhận.
 - **KL hủy chỉ tính phần chưa khớp** (`qty − matchQty`).
@@ -529,13 +540,13 @@ Màn hình hiển thị **2 bảng riêng biệt**, không gộp chung để tr�
 
 > Màn này **không có nút "Đóng"** ở hàng action (chỉ dùng dấu ✕ ở góc).
 
-### 7.2. Ràng buộc đặt lệnh con theo trạng thái TWAP
+### 7.2. Ràng buộc đặt/hủy lệnh con theo trạng thái TWAP
 
-| Trạng thái Auto TWAP | Broker đặt lệnh con thủ công |
-|---|---|
-| `active` (Hoạt động) | ❌ **Không được** — khóa Loại lệnh/Giá/KL, tooltip: *"Auto TWAP đang Hoạt động — không thể tự đặt lệnh con (tạm dừng Auto TWAP để đặt tay)"* |
-| `paused` (Tạm dừng) | ✅ Được phép |
-| `cancelled` / `none` | Theo quy tắc thường (mục 5.1) |
+| Trạng thái Auto TWAP | Đặt lệnh con thủ công | Hủy lệnh con (đơn lẻ/hàng loạt) |
+|---|---|---|
+| `active` (Hoạt động) | ❌ **Không được** — khóa Loại lệnh/Giá/KL, tooltip: *"Auto TWAP đang Hoạt động — không thể tự đặt lệnh con (tạm dừng Auto TWAP để đặt tay)"* | ❌ **Không được** — thông báo *"Auto TWAP đang Hoạt động — không thể hủy lệnh con (tạm dừng Auto TWAP trước khi hủy)"* |
+| `paused` (Tạm dừng) | ✅ Được phép | ✅ Được phép |
+| `cancelled` / `none` | Theo quy tắc thường (mục 5.1) | Theo quy tắc thường (mục 5.3) |
 
 ### 7.3. Tính lại kế hoạch khi bấm "Tiếp tục"
 

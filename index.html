@@ -198,6 +198,8 @@
   /* Sổ lệnh con — vừa 10 dòng, cuộn dọc khi nhiều hơn */
   .table-wrap-child { max-height:430px; overflow-y:auto; }
   .table-wrap-child thead { position:sticky; top:0; z-index:2; }
+  .table-wrap-child tfoot { position:sticky; bottom:0; z-index:2; background:var(--panel-bg); }
+  .table-wrap-child tfoot td { border-top:1px solid var(--border); padding:8px 10px; }
   /* Kéo-thả đổi vị trí cột */
   th.sortable[draggable="true"] { cursor:grab; }
   th.col-dragging { opacity:.4; }
@@ -733,6 +735,16 @@
               </tr>
             </thead>
             <tbody id="child-tbody"><!-- Dựng động từ CHILD_ORDERS (data.js) qua renderChildOrders() --></tbody>
+            <tfoot id="child-tfoot">
+              <tr>
+                <td colspan="9" style="text-align:right;font-weight:700;color:var(--text-title);">Tổng cộng</td>
+                <td class="mono" id="child-total-qty" style="font-weight:700;"></td>
+                <td></td>
+                <td></td>
+                <td class="mono" id="child-total-matchqty" style="font-weight:700;"></td>
+                <td class="mono" id="child-total-remain" style="font-weight:700;"></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -1742,8 +1754,10 @@
       if (status === 'Chờ xác nhận đặt') {
         enabled = { ack: true, reject: true, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
       } else if (status === 'Chờ xác nhận sửa' || status === 'Chờ xác nhận hủy') {
-        // Yêu cầu sửa/hủy đã đang chờ xác nhận qua ACK — nút "Hủy từ Fix Net" bấm trực tiếp không áp dụng nữa
-        enabled = { ack: true, reject: false, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
+        // Yêu cầu sửa/hủy đã đang chờ xác nhận qua ACK — nút "Hủy từ Fix Net" bấm trực tiếp không áp dụng nữa.
+        // Reject ở đây = từ chối YÊU CẦU sửa/hủy (quay lại trạng thái cũ), khác với Reject ở "Chờ xác
+        // nhận đặt" (từ chối cả lệnh mới, chuyển hẳn sang "Từ chối") — xem confirmReject().
+        enabled = { ack: true, reject: true, edit: false, fixnet: false, done4day: false, detail: true, refresh: true };
       } else if (status === 'Chờ xử lý') {
         enabled = { ack: false, reject: false, edit: true, fixnet: true, done4day: true, detail: true, refresh: true };
       } else if (status === 'Đã hủy' || status === 'Khớp hết' || status === 'Từ chối') {
@@ -1838,6 +1852,11 @@
         alert('Vui lòng chọn một lệnh tổng trước.');
         return;
       }
+      var parentTr = document.getElementById('row-' + selectedOrderId);
+      if (parentTr && parentTr.dataset.autotwap === 'active') {
+        alert('Auto TWAP đang Hoạt động — không thể hủy lệnh con (tạm dừng Auto TWAP trước khi hủy).');
+        return;
+      }
       if (!childBulkCancelMode) {
         enterChildBulkCancelMode();
       } else {
@@ -1908,6 +1927,7 @@
         disableChildRowActions(tr);
       });
       if (selectedOrderId) updateOrderAggregates(selectedOrderId);
+      updateChildTotals();
       pendingBulkCancelRows = [];
       closeModal('modal-bulk-cancel-child');
       exitChildBulkCancelMode();
@@ -2104,7 +2124,17 @@
     function confirmReject() {
       var tr = requireSelectedRow();
       if (!tr) return;
-      setOrderStatus(tr, 'Từ chối');
+      var status = orderStatus(tr);
+      if (status === 'Chờ xác nhận sửa' || status === 'Chờ xác nhận hủy') {
+        // Từ chối YÊU CẦU sửa/hủy — lệnh quay lại đúng trạng thái theo tiến độ khớp hiện tại (không
+        // phải "Từ chối", vì lệnh gốc vẫn còn hiệu lực) — cùng công thức đang dùng ở updateOrderAggregates.
+        var matched = parseQty(tr.querySelector('.col-fillqty').textContent);
+        var qtyTotal = parseQty(tr.dataset.qty);
+        var revertStatus = matched <= 0 ? 'Đã gửi' : (matched >= qtyTotal ? 'Khớp hết' : 'Khớp 1 phần');
+        setOrderStatus(tr, revertStatus);
+      } else {
+        setOrderStatus(tr, 'Từ chối');
+      }
       closeModal('modal-reject');
     }
 
@@ -2475,6 +2505,21 @@
     }
 
     // ===== 8: Đồng bộ / lọc "Sổ lệnh con trong ngày" theo lệnh tổng đang chọn + search theo cột (mục 2) =====
+    // Tổng KL đặt/KL khớp/KL còn lại của các lệnh con ĐANG HIỂN THỊ (theo lệnh tổng đang chọn + bộ lọc
+    // tìm kiếm cột hiện tại) — dòng "Tổng cộng" cuối bảng Sổ lệnh con.
+    function updateChildTotals() {
+      var qtyTotal = 0, matchTotal = 0, remainTotal = 0;
+      document.querySelectorAll('#child-tbody tr').forEach(function (tr) {
+        if (tr.style.display === 'none') return;
+        qtyTotal += parseQty(tr.querySelector('.col-child-qty').textContent);
+        matchTotal += parseQty(tr.querySelector('.col-child-matchqty').textContent);
+        remainTotal += parseQty(tr.querySelector('.col-child-remain').textContent);
+      });
+      document.getElementById('child-total-qty').textContent = formatQty(qtyTotal);
+      document.getElementById('child-total-matchqty').textContent = formatQty(matchTotal);
+      document.getElementById('child-total-remain').textContent = formatQty(remainTotal);
+    }
+
     function filterChildOrders(orderId) {
       var tbody = document.getElementById('child-tbody');
       Array.prototype.forEach.call(tbody.querySelectorAll('tr'), function (tr) {
@@ -2482,6 +2527,7 @@
         if (visible) visible = rowMatchesSearch(tr, childSearch);
         tr.style.display = visible ? '' : 'none';
       });
+      updateChildTotals();
     }
 
     // ===== 2: Tìm kiếm theo cột — dùng chung cho cả 2 khung =====
@@ -2820,10 +2866,10 @@
       var d = pendingChildOrder;
       pendingChildOrder = null;
       closeModal('modal-confirm-child-place');
-      createChildOrder(d.parentTr, d.side, d.accountCode, d.subaccountCode, d.symbol, d.price, d.qty);
+      createChildOrder(d.parentTr, d.side, d.accountCode, d.subaccountCode, d.symbol, d.price, d.qty, true);
     }
 
-    function createChildOrder(parentTr, side, accountCode, subaccountCode, symbol, price, qty) {
+    function createChildOrder(parentTr, side, accountCode, subaccountCode, symbol, price, qty, deselectAfter) {
       var childQty = parseQty(qty);
       var parentQty = parseQty(parentTr.dataset.qty);
       if (childQty > parentQty) {
@@ -2865,18 +2911,24 @@
         checkCrossMatch(symbol, price, qty, accountCode, parentTr);
       }
 
-      // Khôi phục trạng thái chọn lệnh tổng + reload form (xoá giá/KL lệnh con vừa đặt)
+      // deselectAfter=true (chỉ luồng "Đặt lệnh con" mới dùng, KHÔNG dùng cho luồng Sửa lệnh con):
+      // tự bỏ chọn lệnh tổng, đưa khung đặt lệnh về trạng thái khóa. Ngược lại giữ nguyên hành vi cũ
+      // (khôi phục trạng thái chọn + reload form) để đặt tiếp lệnh con khác liên tiếp.
       if (selectedOrderId === parentTr.dataset.orderId) {
-        parentTr.classList.add('row-active');
-        var dot = parentTr.querySelector('.status-dot');
-        if (dot) dot.classList.add('active');
-        loadOrderToForm(parentTr);
-        document.getElementById('ord-price').value = '';
-        document.getElementById('ord-qty').value = '';
-        refreshQtyRemBalHint(parentTr);
-        updateToolbar(orderStatus(parentTr));
-        validateOrderForm();
-        document.getElementById('ord-price').focus();
+        if (deselectAfter) {
+          clearSelection();
+        } else {
+          parentTr.classList.add('row-active');
+          var dot = parentTr.querySelector('.status-dot');
+          if (dot) dot.classList.add('active');
+          loadOrderToForm(parentTr);
+          document.getElementById('ord-price').value = '';
+          document.getElementById('ord-qty').value = '';
+          refreshQtyRemBalHint(parentTr);
+          updateToolbar(orderStatus(parentTr));
+          validateOrderForm();
+          document.getElementById('ord-price').focus();
+        }
       }
     }
 
@@ -3140,31 +3192,39 @@
       var tbody = document.getElementById('detail-fills-tbody');
       // "Chi tiết lệnh khớp" chỉ liệt kê lệnh con ĐÃ KHỚP — Khớp 1 phần / Khớp hết.
       // Lệnh Đã gửi/Đã hủy/Đã sửa/Chờ xác nhận chưa có khối lượng khớp thật nên không thuộc bảng này.
+      // Sắp theo THỜI GIAN KHỚP (không phải thời gian đặt) — đúng trình tự lệnh khớp thực tế xảy ra.
       var children = Array.prototype.filter.call(
         document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]'),
         function (r) {
           var st = r.querySelector('.col-child-status').textContent.trim();
           return st === 'Khớp 1 phần' || st === 'Khớp hết';
         }
-      );
+      ).sort(function (a, b) {
+        return (a.dataset.matchtime || '').localeCompare(b.dataset.matchtime || '');
+      });
 
       if (!children.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
         return;
       }
 
+      var qtyTotal = parseQty(tr.dataset.qty);
+      var cumMatched = 0;
       var rows = '';
       children.forEach(function (r) {
         var placedTime = r.querySelector('.col-child-time').textContent.trim();
         var matchTime = r.dataset.matchtime || '';
         var placedQty = r.querySelector('.col-child-qty').textContent.trim();
-        var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
-        var price = formatPrice(parseQty(r.dataset.matchprice)); // giá khớp thật của lệnh con — có thể khác giá đặt (Auto Twap khớp giá thị trường)
-        var remain = r.querySelector('.col-child-remain').textContent.trim();
+        var matchQty = parseQty(r.querySelector('.col-child-matchqty').textContent);
+        cumMatched += matchQty;
+        // KL còn lại = REM BAL + REM PLACE của lệnh tổng NGAY SAU lần khớp này = Qty − tổng KL đã khớp
+        // cộng dồn tính đến và bao gồm lần khớp này (theo thứ tự thời gian khớp).
+        var remainAtMatch = qtyTotal - cumMatched;
+        var price = formatPrice(parseQty(r.dataset.matchprice)); // giá khớp thật — có thể khác giá đặt (Auto Twap khớp giá thị trường)
         var status = r.querySelector('.col-child-status').textContent.trim();
         rows += '<tr><td>' + placedTime + '</td><td>' + matchTime + '</td><td class="mono">' + placedQty +
-                '</td><td class="mono">' + matchQty + '</td><td class="mono">' +
-                price + '</td><td class="mono">' + remain + '</td><td>' + status + '</td></tr>';
+                '</td><td class="mono">' + formatQty(matchQty) + '</td><td class="mono">' +
+                price + '</td><td class="mono">' + formatQty(remainAtMatch) + '</td><td>' + status + '</td></tr>';
       });
       tbody.innerHTML = rows;
     }
@@ -3434,6 +3494,11 @@
     function openCancelChildModal(tr) {
       var childStatus = tr.querySelector('.col-child-status').textContent.trim();
       if (childStatus === 'Đã hủy' || childStatus === 'Chờ xác nhận') return;
+      var parentTr = document.getElementById('row-' + tr.dataset.parentId);
+      if (parentTr && parentTr.dataset.autotwap === 'active') {
+        alert('Auto TWAP đang Hoạt động — không thể hủy lệnh con (tạm dừng Auto TWAP trước khi hủy).');
+        return;
+      }
       cancellingChildRow = tr;
       var sideText = tr.querySelector('.buy, .sell').textContent.trim();
       var isBuy = sideText.indexOf('Mua') === 0;
@@ -3464,6 +3529,7 @@
       tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
       disableChildRowActions(tr);
       updateOrderAggregates(tr.dataset.parentId);
+      updateChildTotals();
       closeModal('modal-cancel-child');
       cancellingChildRow = null;
     }
