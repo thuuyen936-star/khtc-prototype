@@ -413,6 +413,7 @@ Nút `Auto TWAP` **enable** khi lệnh tổng đang chọn thỏa **một trong 
 
 ```
 Cài đặt Auto TWAP                    ✕
+SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
             MWG
            [BÁN]
 ── Cấu hình chia lệnh (REM BAL: 1,600) ──
@@ -496,6 +497,7 @@ Mở khi bấm `Auto TWAP` trên lệnh đã cài đặt:
 
 ```
 Auto TWAP                            ✕
+SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
             MWG
            [BÁN]
 ┌────────────────────────────────────┐

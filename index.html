@@ -352,6 +352,8 @@
   .modal-btn.confirm.buy-confirm  { background:linear-gradient(135deg,var(--buy),var(--buy-dark)); }
   .modal-btn.confirm.sell-confirm { background:linear-gradient(135deg,var(--sell),var(--sell-dark)); }
   .modal-btn.confirm.warning-confirm { background:linear-gradient(135deg,var(--warning),var(--warning-dark)); color:#fff; }
+  /* Dòng thông tin tài khoản — dòng đầu tiên phía trên header Mã CK/Mua-Bán (VD màn Auto TWAP) */
+  .modal-order-account { text-align:center; font-size:var(--fs-small); color:var(--text-dim); margin-bottom:6px; }
   /* Header màn hình xác nhận đặt/sửa lệnh: Mã CK ở trên, Mua/Bán ở dưới, đều căn giữa */
   .modal-order-header { text-align:center; margin-bottom:14px; }
   .modal-order-symbol { font-size:var(--fs-hero); font-weight:700; color:var(--text-title); }
@@ -1032,6 +1034,7 @@
         <span class="modal-title">Cài đặt Auto TWAP</span>
         <span class="modal-close" onclick="closeModal('modal-auto-twap')">✕</span>
       </div>
+      <div class="modal-order-account" id="twap-header-account"></div>
       <div class="modal-order-header">
         <div class="modal-order-symbol" id="twap-header-symbol"></div>
         <div class="modal-order-side" id="twap-header-side"></div>
@@ -1067,6 +1070,7 @@
         <span class="modal-title">Auto TWAP</span>
         <span class="modal-close" onclick="closeModal('modal-auto-twap-review')">✕</span>
       </div>
+      <div class="modal-order-account" id="twapview-header-account"></div>
       <div class="modal-order-header">
         <div class="modal-order-symbol" id="twapview-header-symbol"></div>
         <div class="modal-order-side" id="twapview-header-side"></div>
@@ -1378,6 +1382,8 @@
       twapTargetOrderId = tr.dataset.orderId;
 
       var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('twap-header-account').textContent =
+        (ACCOUNTS[tr.dataset.account] || tr.dataset.account) + ' · ' + (SUBACCOUNTS[tr.dataset.subaccount] || tr.dataset.subaccount);
       document.getElementById('twap-header-symbol').textContent = tr.dataset.symbol;
       var sideHeaderEl = document.getElementById('twap-header-side');
       sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
@@ -1526,6 +1532,8 @@
     function openAutoTwapReview(tr) {
       twapTargetOrderId = tr.dataset.orderId;
       var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('twapview-header-account').textContent =
+        (ACCOUNTS[tr.dataset.account] || tr.dataset.account) + ' · ' + (SUBACCOUNTS[tr.dataset.subaccount] || tr.dataset.subaccount);
       document.getElementById('twapview-header-symbol').textContent = tr.dataset.symbol;
       var sideHeaderEl = document.getElementById('twapview-header-side');
       sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
