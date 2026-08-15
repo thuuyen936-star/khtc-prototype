@@ -97,8 +97,9 @@ var PARENT_ORDERS = [
     orderId: 'LT20260617-03', route: 'Manual', checkPx: '3', createTime: '09:45:00',
     instructions: '',
     status: 'Khớp hết', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    // Khớp hết 800 @ 45200 → avgPx = 45200. VWAP thị trường thấp hơn hẳn (44500) nên
-    // % PR = 45200/44500 - 1 = +1.57% → vượt mức cảnh báo 1% (mua đắt hơn VWAP thị trường).
+    // Khớp hết 800 @ 45200 → avgPx = 45200. VWAP thị trường thấp hơn hẳn (44500).
+    // Lệnh MUA mà AVG PX > VWAP ⇒ khớp bất lợi ⇒ % PR = -(45200/44500 - 1) = -1.57%
+    // → dưới ngưỡng -0.6% nên hiện badge cảnh báo (mua đắt hơn VWAP thị trường).
     symbol: 'VIC', qty: 800, price: 45200, fillQty: 800, avgPx: 45200, vwap: 44500,
     orderType: 'LO', note: '', marketVol: 2900000,
     tradeId: 'TRD20260617-03'

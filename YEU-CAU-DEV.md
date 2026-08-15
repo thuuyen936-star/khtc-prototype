@@ -113,7 +113,7 @@ Tất cả chỉ số của lệnh tổng được **tổng hợp trực tiếp 
 | **Avg Px** | `Σ(matchQty × price) / Σ matchQty`; nếu Fill Qty = 0 → để trống (không hiện `0`) |
 | **% COMP** | `Fill Qty / Qty × 100` |
 | **% Khớp/TT** | `Fill Qty / marketVol × 100` |
-| **% PR** | `Avg Px / VWAP − 1` (×100). Chỉ hiện khi Fill Qty > 0 |
+| **% PR** | Chênh lệch Avg Px so với VWAP, **mang dấu theo chất lượng khớp**:<br>• Lệnh **Mua**: `−(Avg Px / VWAP − 1) × 100` → âm khi `Avg Px > VWAP`<br>• Lệnh **Bán**: `(Avg Px / VWAP − 1) × 100` → âm khi `Avg Px < VWAP`<br>Dấu âm luôn nghĩa là khớp **bất lợi**. Chỉ hiện khi Fill Qty > 0 và VWAP > 0 |
 | **Net Value** | `Qty × LmtPx` |
 | **Filled Value** | `Fill Qty × Avg Px` |
 
@@ -125,7 +125,7 @@ Tất cả chỉ số của lệnh tổng được **tổng hợp trực tiếp 
 
 | Chỉ số | Ngưỡng | Xử lý khi vượt |
 |---|---|---|
-| **% PR** | `\|% PR\| > 1%` | Đổi sang badge vàng warning |
+| **% PR** | `% PR < -0.6%` | Đổi sang badge vàng warning |
 | **% Khớp/TT** | `> 20%` | Đổi sang badge vàng warning |
 
 Ngưỡng phải **cấu hình được** (không hardcode).
@@ -576,7 +576,7 @@ Mọi popup thao tác lệnh (đặt/sửa/hủy — cả lệnh tổng và lệ
 | LT20260616-02 | Chờ xử lý | None | Đã ACK, chưa có lệnh con |
 | LT20260617-01 | Chờ xác nhận sửa | None | Chờ ACK yêu cầu sửa |
 | LT20260617-02 | Đã hủy | None | Vẫn chọn được để xem Detail |
-| LT20260617-03 | Khớp hết | None | **% PR = +1.57% → vượt cảnh báo 1%** |
+| LT20260617-03 | Khớp hết | None | Lệnh **Mua** VIC, Avg Px 45,200 > VWAP 44,500 ⇒ **% PR = −1.57% → dưới ngưỡng −0.6%, hiện cảnh báo** |
 | LT20260617-04 | Chờ xác nhận hủy | None | Chờ ACK yêu cầu hủy |
 | LT20260618-01 | Khớp 1 phần | None | Khớp 1 phần thông thường |
 | LT20260619-01 | Khớp 1 phần | Hoạt động | **3 lệnh con do Auto TWAP sinh + 1 lệnh broker đặt tay** |

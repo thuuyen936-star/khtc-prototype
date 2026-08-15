@@ -577,7 +577,7 @@
                 <th class="col-new sortable">Fill qty</th>
                 <th class="col-new sortable">Avg px</th>
                 <th class="col-new sortable">VWAP</th>
-                <th class="col-new sortable" title="Chênh lệch Giá khớp TB so với VWAP: AVG PX / VWAP - 1">% PR</th>
+                <th class="col-new sortable" title="Chênh lệch Giá khớp TB so với VWAP. Dấu âm = khớp bất lợi (Mua: AVG PX > VWAP; Bán: AVG PX < VWAP). Cảnh báo khi < -0.6%">% PR</th>
                 <th class="col-new sortable" title="Tỷ lệ khối lượng đã khớp / khối lượng đặt của lệnh tổng">% COMP</th>
                 <th class="col-new sortable" title="Tỷ lệ KL đã khớp / KL giao dịch toàn thị trường (TT) của mã CK">% Khớp/TT</th>
                 <th class="col-new sortable">REM BAL</th>
@@ -2768,18 +2768,27 @@
       return Math.round((parseFloat(String(text).replace(/,/g, '')) || 0) * 1000);
     }
 
-    // Mức cảnh báo: |% PR| > 1% hoặc % Khớp/TT > 20% thì đổi màu vàng warning, nền dạng badge như Trạng thái
-    var PERCENTPR_WARN_THRESHOLD = 1;
+    /* Mức cảnh báo: % PR < -0.6% hoặc % Khớp/TT > 20% thì đổi màu vàng warning,
+       nền dạng badge như Trạng thái.
+       % PR mang dấu theo CHẤT LƯỢNG khớp (xem percentPrText): âm = khớp bất lợi
+       hơn VWAP, nên ngưỡng là một SÀN có dấu, không phải trị tuyệt đối. */
+    var PERCENTPR_WARN_THRESHOLD = -0.6;
     var FILLPCT_WARN_THRESHOLD = 20;
     function warnBadgeHtml(text, exceeds) {
       return exceeds ? '<span class="col-warn-badge">' + text + '</span>' : text;
     }
 
-    // % PR = AVG PX / VWAP - 1 — chỉ hiện khi đã có khối lượng khớp (giống điều kiện hiện Avg Px)
-    function percentPrText(avgPx, vwap, fillQty) {
+    /* % PR — chênh lệch giữa giá khớp bình quân và VWAP, mang dấu theo CHẤT LƯỢNG
+       khớp chứ không theo hướng giá:
+         · Lệnh MUA: âm khi AVG PX > VWAP  (mua đắt hơn thị trường ⇒ bất lợi)
+         · Lệnh BÁN: âm khi AVG PX < VWAP  (bán rẻ hơn thị trường ⇒ bất lợi)
+       Nhờ vậy dấu âm luôn nghĩa là khớp bất lợi, dùng chung một ngưỡng cảnh báo
+       -0.6% cho cả hai chiều. Chỉ hiện khi đã có KL khớp (giống điều kiện Avg Px). */
+    function percentPrText(avgPx, vwap, fillQty, side) {
       if (!(fillQty > 0) || !(vwap > 0)) return '';
-      var pct = (avgPx / vwap - 1) * 100;
-      return warnBadgeHtml(pct.toFixed(2) + '%', Math.abs(pct) > PERCENTPR_WARN_THRESHOLD);
+      var raw = (avgPx / vwap - 1) * 100;
+      var pct = side === 'Mua' ? -raw : raw;
+      return warnBadgeHtml(pct.toFixed(2) + '%', pct < PERCENTPR_WARN_THRESHOLD);
     }
 
     // % Khớp/TT = KL đã khớp / KL giao dịch toàn thị trường
@@ -2842,7 +2851,7 @@
 
       var vwap = parseQty(tr.dataset.vwap);
       var percentprTd = tr.querySelector('.col-percentpr');
-      if (percentprTd) percentprTd.innerHTML = percentPrText(avgPx, vwap, matched);
+      if (percentprTd) percentprTd.innerHTML = percentPrText(avgPx, vwap, matched, tr.dataset.side);
 
       // Chỉ tự chuyển trạng thái giữa các mốc Đã gửi/Khớp 1 phần/Khớp hết — không đụng tới
       // Chờ xác nhận đặt / Chờ xác nhận sửa / Chờ xác nhận hủy / Chờ xử lý / Đã hủy (trạng thái vòng đời, không phải trạng thái khớp lệnh).
@@ -3301,7 +3310,7 @@
           '<td class="col-new col-fillqty">' + formatQty(o.fillQty) + '</td>' +
           '<td class="col-new col-avgpx">' + (o.fillQty > 0 ? formatPrice(o.avgPx) : '') + '</td>' +
           '<td class="col-new">' + formatPrice(o.vwap) + '</td>' +
-          '<td class="col-new col-percentpr">' + percentPrText(o.avgPx, o.vwap, o.fillQty) + '</td>' +
+          '<td class="col-new col-percentpr">' + percentPrText(o.avgPx, o.vwap, o.fillQty, o.side) + '</td>' +
           '<td class="col-new col-completepct">0.00%</td>' +
           '<td class="col-new col-fillpct">0.00%</td>' +
           '<td class="col-new col-rembal">0</td>' +
