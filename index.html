@@ -1206,12 +1206,15 @@
       else openAutoTwapReview(tr);
     }
 
-    // ===== Cài đặt Auto TWAP: chia lệnh theo phiên ATO (9h00-9h15) / Liên tục (9h15-14h30, nghỉ trưa
-    // 11h30-13h00 không tính) / ATC (14h30-14h45). Số lần đẩy lệnh = thời lượng phiên liên tục khả dụng
-    // (đã trừ nghỉ trưa, đã chặn theo khung giờ phiên) / Tần suất; Khối lượng mỗi lệnh làm tròn bội số 100.
+    // ===== Cài đặt Auto TWAP: hệ thống tự suy ATO/ATC theo khung giờ, chia đều REM BAL cho MỌI lệnh
+    // trong kế hoạch (kể cả ATO/ATC), luôn chẵn lô 100. Nếu KL/lệnh sẽ dưới 100 thì tự giảm số lệnh
+    // liên tục (tăng giãn cách) cho tới khi mọi lệnh đạt tối thiểu 100. Lệnh cuối cùng theo thời gian
+    // nhận phần dư khi REM BAL không chia hết, để tổng kế hoạch luôn khớp đúng REM BAL.
     var TWAP_ATO_START = 9 * 60, TWAP_ATO_END = 9 * 60 + 15;
     var TWAP_CONT_START = 9 * 60 + 15, TWAP_CONT_END = 14 * 60 + 30;
     var TWAP_LUNCH_START = 11 * 60 + 30, TWAP_LUNCH_END = 13 * 60;
+    var TWAP_ATC_TIME = TWAP_CONT_END; // mốc lập kế hoạch cho lệnh ATC = 14:30
+    var TWAP_SESSION_LABEL = { ato: 'ATO', continuous: 'Liên tục', atc: 'ATC' };
     var twapTargetOrderId = null; // lệnh tổng đang cài đặt/xem Auto TWAP trong modal
 
     function timeToMinutes(hhmm) {
@@ -1220,22 +1223,66 @@
       return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
     }
 
-    function computeTwapPushCount(startMin, endMin, interval) {
-      if (startMin === null || endMin === null || interval <= 0) return 0;
-      // Start time < 9h15 tính từ 9h15; End time > 14h30 tính tới 14h30
+    function minutesToTimeStr(min) {
+      var h = Math.floor(min / 60), m = min % 60;
+      return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function computeAutoTwapPlan(startMin, endMin, interval, remBal) {
+      if (startMin === null || endMin === null || endMin <= startMin || interval <= 0 || remBal <= 0) {
+        return { error: 'Vui lòng nhập đầy đủ Thời gian bắt đầu/kết thúc/Tần suất hợp lệ.' };
+      }
+
+      var hasAto = startMin < TWAP_ATO_END;
+      var hasAtc = endMin >= TWAP_CONT_END;
+
       var clampedStart = Math.max(startMin, TWAP_CONT_START);
       var clampedEnd = Math.min(endMin, TWAP_CONT_END);
       var overlapLunch = Math.max(0, Math.min(clampedEnd, TWAP_LUNCH_END) - Math.max(clampedStart, TWAP_LUNCH_START));
-      var availableMinutes = Math.max(0, clampedEnd - clampedStart - overlapLunch);
-      return availableMinutes > 0 ? Math.max(1, Math.floor(availableMinutes / interval)) : 0;
-    }
+      var availableMin = Math.max(0, clampedEnd - clampedStart - overlapLunch);
 
-    // Khối lượng mỗi lệnh (phiên liên tục), làm tròn bội số 100
-    function computeTwapPerPushQty(pushCount, remBal, contPct) {
-      var contTotalQty = Math.round(remBal * contPct / 100 / 100) * 100;
-      var perPushQty = pushCount > 0 ? Math.round((contTotalQty / pushCount) / 100) * 100 : 0;
-      if (perPushQty < 100 && contTotalQty > 0) perPushQty = 100;
-      return perPushQty;
+      var contCount = availableMin > 0 ? Math.floor(availableMin / interval) : 0;
+      var totalCount = contCount + (hasAto ? 1 : 0) + (hasAtc ? 1 : 0);
+
+      var requiredFixed = (hasAto ? 1 : 0) + (hasAtc ? 1 : 0);
+      var maxByLot100 = Math.floor(remBal / 100);
+      if (maxByLot100 < requiredFixed) {
+        return { error: 'REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc.' };
+      }
+
+      var effectiveInterval = interval;
+      var adjusted = false;
+      if (totalCount > maxByLot100) {
+        contCount = maxByLot100 - requiredFixed;
+        totalCount = contCount + requiredFixed;
+        effectiveInterval = contCount > 0 ? Math.floor(availableMin / contCount) : null;
+        adjusted = true;
+      }
+
+      if (totalCount === 0) {
+        return { error: 'Khung giờ/Tần suất không hợp lệ, không lập được kế hoạch.' };
+      }
+
+      var perOrderQty = Math.floor(remBal / totalCount / 100) * 100;
+      var lastOrderQty = remBal - perOrderQty * (totalCount - 1);
+
+      var plan = [];
+      if (hasAto) plan.push({ session: 'ato', timeMin: TWAP_ATO_START, qty: perOrderQty });
+      var t = clampedStart;
+      for (var i = 0; i < contCount; i++) {
+        if (t >= TWAP_LUNCH_START && t < TWAP_LUNCH_END) t = TWAP_LUNCH_END;
+        plan.push({ session: 'continuous', timeMin: t, qty: perOrderQty });
+        t += effectiveInterval;
+      }
+      if (hasAtc) plan.push({ session: 'atc', timeMin: TWAP_ATC_TIME, qty: perOrderQty });
+      plan.forEach(function (p, idx) { p.seq = idx + 1; });
+      plan[plan.length - 1].qty = lastOrderQty;
+
+      return {
+        ato: hasAto, atc: hasAtc, contCount: contCount, totalCount: totalCount,
+        interval: interval, effectiveInterval: effectiveInterval, adjusted: adjusted,
+        perOrderQty: perOrderQty, lastOrderQty: lastOrderQty, plan: plan
+      };
     }
 
     // Đếm số lệnh con đã được Auto TWAP tự sinh (trader "Auto Twap") cho 1 lệnh tổng
