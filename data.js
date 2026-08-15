@@ -137,9 +137,9 @@ var PARENT_ORDERS = [
   {
     orderId: 'LT20260619-01', route: 'Manual', checkPx: '2', createTime: '09:00:00',
     instructions: 'Auto TWAP chia lệnh theo phiên liên tục',
-    // Đã khớp 400/3000 → trạng thái "Khớp 1 phần"; avgPx = 52500 (các lệnh con khớp đều @ 52500)
+    // Đã khớp 300/3000 → trạng thái "Khớp 1 phần"; avgPx = 52500 (các lệnh con khớp đều @ 52500)
     status: 'Khớp 1 phần', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 400, avgPx: 52500, vwap: 52478.9126,
+    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 300, avgPx: 52500, vwap: 52478.9126,
     orderType: 'LO', note: '', marketVol: 2600000,
     tradeId: '', autoTwap: 'active'
   }
@@ -166,7 +166,7 @@ var CHILD_ORDERS = [
   // Lệnh con của LT20260619-01 (đang chạy Auto TWAP): 1 lệnh broker đặt tay trước khi cài Auto TWAP,
   // xen giữa 3 lệnh do Auto TWAP tự sinh (trader "Auto Twap") — demo "lẫn 1 lệnh con do broker đặt trước".
   { childId: 'CO20260619-01', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:05:00', side: 'Bán', orderType: 'LO', trader: 'ADMINHN',   qty: 500, price: 52500, matchQty: 0,   status: 'Đã gửi' },
-  { childId: 'CO20260619-02', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:20:00', matchTime: '09:20:40', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 300, price: 52500, matchQty: 100, status: 'Khớp 1 phần' },
-  { childId: 'CO20260619-03', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:35:00', matchTime: '09:36:12', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 300, price: 52500, matchQty: 300, status: 'Khớp hết' },
-  { childId: 'CO20260619-04', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:50:00', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 300, price: 52500, matchQty: 0,   status: 'Đã gửi' }
+  { childId: 'CO20260619-02', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:00:00', matchTime: '09:00:30', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 200, status: 'Khớp hết' },
+  { childId: 'CO20260619-03', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:15:00', matchTime: '09:15:35', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 100, status: 'Khớp 1 phần' },
+  { childId: 'CO20260619-04', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:30:00', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 0,   status: 'Đã gửi' }
 ];
