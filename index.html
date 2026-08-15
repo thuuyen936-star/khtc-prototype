@@ -3621,10 +3621,13 @@
       var anchor = lastPush === null ? startMin : lastPush + interval;
       var win = getAutoTwapRemainingWindow(orderId, startMin, endMin, anchor);
       var result = computeAutoTwapPlan(win.startMin, win.endMin, interval, remBal);
-      if (result.error) return;
+      // Luôn lưu cấu hình gốc (startTime/endTime/interval) dù kế hoạch còn lại rỗng/lỗi (VD đã đẩy hết
+      // REM BAL) — nếu không, màn quản lý sẽ hiện toàn bộ "—" như thể lệnh CHƯA từng được cài đặt.
       autoTwapConfigs[orderId] = {
         startTime: startTime, endTime: endTime, interval: interval,
-        effectiveInterval: result.effectiveInterval, plannedCount: result.totalCount, plan: result.plan
+        effectiveInterval: result.error ? interval : result.effectiveInterval,
+        plannedCount: result.error ? 0 : result.totalCount,
+        plan: result.error ? [] : result.plan
       };
     }
     Object.keys(AUTOTWAP_SEED_CONFIG).forEach(function (orderId) {
