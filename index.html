@@ -1129,7 +1129,8 @@
     var STATUS_BADGE = {
       'Đã gửi': 'badge-sent',
       'Chờ xử lý': 'badge-queued',
-      'Chờ xác nhận đặt': 'badge-pending',
+      // Cả 3 trạng thái "chờ xác nhận" dùng chung một màu vàng warning
+      'Chờ xác nhận đặt': 'badge-awaiting',
       'Chờ xác nhận sửa': 'badge-awaiting',
       'Chờ xác nhận hủy': 'badge-awaiting',
       'Đã hủy': 'badge-cancelled',
@@ -1139,6 +1140,28 @@
       'Khớp 1 phần': 'badge-part',
       'Chờ xác nhận': 'badge-awaiting'
     };
+
+    /* Nhãn HIỂN THỊ của trạng thái — rút gọn "Chờ xác nhận" thành "CXN" cho vừa
+       bề rộng cột Status. GIÁ TRỊ trạng thái không đổi: mọi logic (ACK/REJECT,
+       nhóm active/kết thúc) vẫn dùng chuỗi đầy đủ, đọc qua orderStatus() từ
+       thuộc tính data-status chứ KHÔNG đọc từ text hiển thị. */
+    var STATUS_LABEL = {
+      'Chờ xác nhận đặt': 'CXN đặt',
+      'Chờ xác nhận sửa': 'CXN sửa',
+      'Chờ xác nhận hủy': 'CXN hủy',
+      'Chờ xác nhận': 'CXN'
+    };
+    var statusLabel = function (status) { return STATUS_LABEL[status] || status; };
+
+    /* Đọc trạng thái CHUẨN của một dòng lệnh tổng. Trước đây code đọc thẳng
+       textContent của ô Status, nên chỉ cần đổi nhãn hiển thị là toàn bộ so sánh
+       chuỗi vỡ. Nay giá trị chuẩn nằm ở data-status; fallback textContent chỉ để
+       an toàn với dòng cũ chưa có thuộc tính. */
+    function orderStatus(tr) {
+      var el = tr && tr.querySelector('.col-status');
+      if (!el) return '';
+      return (el.dataset.status || el.textContent).trim();
+    }
 
     // Auto TWAP: none (chưa cài đặt) / active (Hoạt động) / paused (Tạm dừng)
     var AUTOTWAP_LABEL = { active: 'Hoạt động', paused: 'Tạm dừng', cancelled: 'Đã hủy', none: 'None' };
@@ -1164,7 +1187,7 @@
       var autotwap = tr.dataset.autotwap || 'none';
       var remBal = parseQty(tr.querySelector('.col-rembal').textContent);
       // Lệnh chưa active (vd "Chờ xác nhận đặt") không cho đặt lệnh con → cũng không cho cài Auto TWAP mới
-      var status = tr.querySelector('.col-status').textContent.trim();
+      var status = orderStatus(tr);
       var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
       var enabled = (autotwap === 'none' && remBal > 0 && isActive) || autotwap === 'active' || autotwap === 'paused';
       btn.classList.toggle('disabled', !enabled);
@@ -1356,7 +1379,7 @@
       closeModal('modal-auto-twap');
       refreshAutoTwapButtonState();
       if (selectedOrderId === twapTargetOrderId) {
-        var status = tr.querySelector('.col-status').textContent.trim();
+        var status = orderStatus(tr);
         var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
         if (isActive) refreshQtyRemBalHint(tr);
         validateOrderForm();
@@ -1434,7 +1457,7 @@
       closeModal('modal-auto-twap-review');
       refreshAutoTwapButtonState();
       if (selectedOrderId === twapTargetOrderId) {
-        var status = tr.querySelector('.col-status').textContent.trim();
+        var status = orderStatus(tr);
         var isActive = (status === 'Chờ xử lý' || status === 'Đã gửi' || status === 'Khớp 1 phần');
         if (isActive) refreshQtyRemBalHint(tr);
         validateOrderForm();
@@ -1524,7 +1547,7 @@
       document.getElementById('btn-toolbar-place').classList.remove('toggled-active');
 
       var tr = document.getElementById('row-' + orderId);
-      var status = tr.querySelector('.col-status').textContent.trim();
+      var status = orderStatus(tr);
 
       // Check 1 dòng lệnh tổng → khu vực đặt lệnh con luôn fill thông tin lệnh tổng (Mua/Bán, Tài khoản,
       // Tiểu khoản, Chứng khoán) dù kích hoạt hay không. Kích hoạt (Chờ xử lý/Đã gửi/Khớp 1 phần): nhóm
@@ -1663,7 +1686,8 @@
 
     function setOrderStatus(tr, status) {
       var statusEl = tr.querySelector('.col-status');
-      statusEl.textContent = status;
+      statusEl.dataset.status = status;              // giá trị chuẩn cho logic
+      statusEl.textContent = statusLabel(status);    // nhãn rút gọn cho hiển thị
       statusEl.className = 'col-status ' + (STATUS_BADGE[status] || '');
       if (tr.dataset.orderId === selectedOrderId) updateToolbar(status);
     }
@@ -1882,7 +1906,7 @@
       if (isToolbarBtnDisabled('btn-ack')) return;
       var tr = requireSelectedRow();
       if (!tr) return;
-      var status = tr.querySelector('.col-status').textContent.trim();
+      var status = orderStatus(tr);
       if (status === 'Chờ xác nhận hủy') {
         openFixnetModalCore(tr);
         return;
@@ -2497,7 +2521,7 @@
 
       if (selectedOrderId) {
         var selectedTr = document.getElementById('row-' + selectedOrderId);
-        var parentStatus = selectedTr.querySelector('.col-status').textContent.trim();
+        var parentStatus = orderStatus(selectedTr);
         if (parentStatus === 'Chờ xử lý' || parentStatus === 'Đã gửi' || parentStatus === 'Khớp 1 phần') {
           openChildPlaceConfirm(selectedTr, side, accountCode, subaccountCode, symbol, price, qty);
           return;
@@ -2574,7 +2598,7 @@
         '<td>Broker</td><td class="col-checkpx"></td>' +
         '<td class="link">' + accountCode + '</td><td>' + subaccountCode + '</td>' +
         '<td class="col-instructions"></td>' +
-        '<td><span class="col-status badge-pending">Chờ xác nhận đặt</span></td>' +
+        '<td><span class="col-status badge-awaiting" data-status="Chờ xác nhận đặt">CXN đặt</span></td>' +
         '<td class="' + sideClass + '">' + side + '</td>' +
         '<td>' + symbol + '</td><td class="col-qty">' + qty + '</td>' +
         '<td class="col-new col-price">' + formatPrice(parseQty(price)) + '</td>' +
@@ -2696,7 +2720,7 @@
       updateOrderAggregates(parentTr.dataset.orderId); // đã tự tính lại REM BAL/REM PLACE/Fill Qty ở đây
 
       // Lệnh tổng "Chờ xử lý" đã có lệnh con đầu tiên → chuyển sang "Đã gửi"
-      if (parentTr.querySelector('.col-status').textContent.trim() === 'Chờ xử lý') {
+      if (orderStatus(parentTr) === 'Chờ xử lý') {
         setOrderStatus(parentTr, 'Đã gửi');
       }
 
@@ -2714,7 +2738,7 @@
         document.getElementById('ord-price').value = '';
         document.getElementById('ord-qty').value = '';
         refreshQtyRemBalHint(parentTr);
-        updateToolbar(parentTr.querySelector('.col-status').textContent.trim());
+        updateToolbar(orderStatus(parentTr));
         validateOrderForm();
         document.getElementById('ord-price').focus();
       }
@@ -3318,7 +3342,7 @@
           '<td class="link">' + o.account + '</td>' +
           '<td>' + o.subaccount + '</td>' +
           '<td class="col-instructions">' + instructionsCell + '</td>' +
-          '<td><span class="col-status ' + (STATUS_BADGE[o.status] || '') + '">' + o.status + '</span></td>' +
+          '<td><span class="col-status ' + (STATUS_BADGE[o.status] || '') + '" data-status="' + o.status + '">' + statusLabel(o.status) + '</span></td>' +
           '<td class="' + (o.side === 'Mua' ? 'buy' : 'sell') + '">' + o.side + '</td>' +
           '<td>' + o.symbol + '</td>' +
           '<td class="col-qty">' + formatQty(o.qty) + '</td>' +

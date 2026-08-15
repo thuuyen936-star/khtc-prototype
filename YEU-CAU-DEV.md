@@ -35,7 +35,7 @@ Tất cả badge dùng chung style: `inline-block`, `padding 4px 10px`, `border-
 | Ý nghĩa | Màu chữ | Nền |
 |---|---|---|
 | Đã gửi | teal `#1AB090` | `rgba(26,176,144,.14)` |
-| Chờ xác nhận đặt | vàng `#FFCC00` | `rgba(255,204,0,.14)` |
+| Chờ xác nhận đặt | vàng warning | `rgba(255,204,0,.16)` |
 | Chờ xử lý | xanh dương `#2681E0` | `rgba(38,129,224,.14)` |
 | Chờ xác nhận sửa / hủy | vàng warning | `rgba(255,204,0,.16)` |
 | Khớp hết / Khớp 1 phần | xanh lá `#26E07C` | `rgba(95,194,85,.14)` |
@@ -46,6 +46,12 @@ Tất cả badge dùng chung style: `inline-block`, `padding 4px 10px`, `border-
 | **Cảnh báo ngưỡng (% PR, % Khớp/TT)** | vàng warning | `rgba(255,204,0,.16)` |
 
 Quy ước Mua/Bán: **Mua = xanh lá**, **Bán = đỏ** — áp dụng cho text, viền khung đặt lệnh, nút xác nhận.
+
+**Nhãn hiển thị viết tắt (cột Status):** `Chờ xác nhận` rút gọn thành `CXN` để vừa bề rộng cột —
+`Chờ xác nhận đặt` → `CXN đặt`, `Chờ xác nhận sửa` → `CXN sửa`, `Chờ xác nhận hủy` → `CXN hủy`.
+Đây **chỉ là nhãn hiển thị**; toàn bộ tên trạng thái dùng trong bảng A5/A6, sơ đồ vòng đời A4 và các
+ca kiểm thử bên dưới vẫn dùng tên đầy đủ — đó là giá trị lưu trữ mà mọi logic so sánh, không phải
+chuỗi hiển thị trên UI.
 
 ### A3. Mô hình dữ liệu
 
