@@ -859,7 +859,7 @@
       <div class="table-wrap">
         <table class="table-detail-fills">
           <!-- Chỉ liệt kê lệnh con ĐÃ KHỚP (Khớp 1 phần / Khớp hết) — xem buildFillHistory() -->
-          <thead><tr><th>Thời gian đặt</th><th>KL đặt</th><th>KL khớp</th><th>Giá</th><th title="Khối lượng của lệnh con chưa khớp">KL chờ xử lý</th><th>Trạng thái</th></tr></thead>
+          <thead><tr><th>Thời gian đặt</th><th>Thời gian khớp</th><th>Giá khớp</th><th title="Khối lượng của lệnh con chưa khớp">KL còn lại</th><th>Trạng thái</th></tr></thead>
           <tbody id="detail-fills-tbody"></tbody>
         </table>
       </div>
@@ -3012,19 +3012,18 @@
       );
 
       if (!children.length) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);">Chưa có lệnh khớp</td></tr>';
         return;
       }
 
       var rows = '';
       children.forEach(function (r) {
-        var time = r.querySelector('.col-child-time').textContent.trim();
-        var placedQty = r.querySelector('.col-child-qty').textContent.trim();
-        var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
-        var price = formatPrice(parseQty(r.dataset.price));
+        var placedTime = r.querySelector('.col-child-time').textContent.trim();
+        var matchTime = r.dataset.matchtime || '';
+        var price = formatPrice(parseQty(r.dataset.price)); // giá khớp = giá đặt (lệnh LO khớp đúng giá)
         var remain = r.querySelector('.col-child-remain').textContent.trim();
         var status = r.querySelector('.col-child-status').textContent.trim();
-        rows += '<tr><td>' + time + '</td><td class="mono">' + placedQty + '</td><td class="mono">' + matchQty + '</td><td class="mono">' +
+        rows += '<tr><td>' + placedTime + '</td><td>' + matchTime + '</td><td class="mono">' +
                 price + '</td><td class="mono">' + remain + '</td><td>' + status + '</td></tr>';
       });
       tbody.innerHTML = rows;
@@ -3391,7 +3390,8 @@
         var sideLabel = c.side + ' thông thường';
         var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
         var disabledCls = (c.status === 'Đã hủy' || c.status === 'Chờ xác nhận' || c.status === 'Khớp hết') ? ' disabled' : '';
-        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '">' +
+        // data-matchtime: thời điểm khớp — chỉ có ở lệnh con đã khớp (xem buildFillHistory)
+        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '" data-matchtime="' + (c.matchTime || '') + '">' +
           '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
           '<span class="tbtn' + disabledCls + '" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
           '<span class="tbtn red' + disabledCls + '" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +

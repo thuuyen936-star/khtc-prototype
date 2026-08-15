@@ -86,11 +86,12 @@ chuỗi hiển thị trên UI.
 | `parentId` | string | FK → lệnh tổng |
 | `account`, `subaccount`, `symbol` | string | Kế thừa từ lệnh tổng, **không sửa được** |
 | `time` | time | Thời gian đặt |
+| `matchTime` | time | Thời gian khớp — **chỉ có khi** `status` là `Khớp 1 phần` / `Khớp hết`; lệnh chưa khớp để trống |
 | `side` | enum | Kế thừa lệnh tổng |
 | `orderType` | enum | Kế thừa lệnh tổng |
 | `trader` | string | Người đặt. `Auto Twap` = do hệ thống TWAP sinh |
 | `qty` | int | KL đặt |
-| `price` | int (VND) | Giá đặt |
+| `price` | int (VND) | Giá đặt. Lệnh `LO` khớp đúng giá đặt ⇒ "Giá khớp" ở màn Detail = `price` |
 | `matchQty` | int | KL đã khớp |
 | `status` | enum | Xem A4 |
 
@@ -252,9 +253,9 @@ Số hiệu lệnh tổng: <orderId>
 │ Instructions Bloomberg               │
 │ Ghi chú                    [✏️ sửa]  │
 ├──────────────────────────────────────┤
-│ Chi tiết lệnh khớp:                  │
-│ Thời gian đặt│KL đặt│KL khớp│Giá     │
-│ │KL chờ xử lý│Trạng thái             │
+│ Chi tiết lệnh khớp:                   │
+│ Thời gian đặt│Thời gian khớp│Giá khớp│
+│ KL còn lại│Trạng thái                │
 └──────────────────────────────────────┘
 ```
 
@@ -264,7 +265,10 @@ Số hiệu lệnh tổng: <orderId>
 - `Rem Bal` và `Rem Placed` là **2 chỉ số khác nhau**, phải bind đúng dữ liệu tương ứng.
 - **Sửa Ghi chú:** click icon bút → chuyển thành input → Enter hoặc blur để lưu, Escape để hủy. **Sau khi lưu phải đồng bộ ngay ra cột "Ghi chú" của bảng lệnh tổng bên ngoài.**
 - **Bảng "Chi tiết lệnh khớp"** liệt kê **đúng các lệnh con thật** của lệnh tổng (không tách giả lập từ Fill Qty), và **chỉ những lệnh con đã có khối lượng khớp** — trạng thái `Khớp 1 phần` hoặc `Khớp hết`. Lệnh con `Đã gửi`, `Đã hủy`, `Đã sửa`, `Chờ xác nhận` không thuộc bảng này vì chưa phát sinh khớp thật. Không có lệnh nào khớp → hiện `Chưa có lệnh khớp`.
-- Cột đầu của bảng là **Thời gian đặt** (giờ đặt lệnh con) — không phải thời gian khớp; dữ liệu lệnh con hiện chỉ lưu một mốc thời gian duy nhất là thời điểm đặt.
+- **5 cột theo đúng thứ tự:** Thời gian đặt → Thời gian khớp → Giá khớp → KL còn lại → Trạng thái. Không hiện KL đặt / KL khớp trong bảng này (đã có ở AVG PX/Fill Qty của lệnh tổng phía trên).
+- **Thời gian khớp** đọc từ trường mới `matchTime` của lệnh con (xem A3) — độc lập với `time` (thời gian đặt). Backend phải trả về **cả 2 mốc thời gian** cho lệnh con đã khớp.
+- **Giá khớp** = giá đặt của lệnh con (`price`) vì đây là lệnh `LO`, khớp đúng giá đặt — không có giá khớp khác giá đặt trong phạm vi hiện tại.
+- **KL còn lại** = `qty − matchQty` của lệnh con đó (không phải Rem Bal/Rem Placed của lệnh tổng).
 
 ---
 
