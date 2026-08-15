@@ -1246,7 +1246,7 @@
 
       var requiredFixed = (hasAto ? 1 : 0) + (hasAtc ? 1 : 0);
       var maxByLot100 = Math.floor(remBal / 100);
-      if (maxByLot100 === 0) {
+      if (totalCount > 0 && maxByLot100 === 0) {
         return { error: requiredFixed > 0
           ? 'REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc.'
           : 'REM BAL quá nhỏ, không đủ 100 cổ phiếu để lập kế hoạch.' };
