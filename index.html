@@ -375,6 +375,9 @@
   .modal-kv-group .modal-kv-row { padding:10px 0; }
   .modal-kv-row { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:var(--fs-small); }
   .modal-kv-row:last-child { border-bottom:none; }
+  /* Biến thể 2 cột — tiết kiệm chiều cao cho khối thông tin có nhiều dòng (VD màn quản lý Auto TWAP) */
+  .modal-kv-group-2col { display:grid; grid-template-columns:1fr 1fr; column-gap:16px; }
+  .modal-kv-group-2col .modal-kv-row:nth-last-child(-n+2) { border-bottom:none; }
   .modal-kv-row label { color:var(--text-dim); }
   .modal-kv-row span { color:var(--text-title); font-weight:600; font-family:var(--font-ui); }
   .modal-verified { display:flex; align-items:center; justify-content:center; gap:6px;
@@ -1056,13 +1059,13 @@
         <div class="modal-order-symbol" id="twapview-header-symbol"></div>
         <div class="modal-order-side" id="twapview-header-side"></div>
       </div>
-      <div class="modal-kv-group">
+      <div class="modal-kv-group modal-kv-group-2col">
         <div class="modal-kv-row"><label>Trạng thái</label><span id="twapview-status"></span></div>
+        <div class="modal-kv-row"><label>Tần suất</label><span id="twapview-interval"></span></div>
         <div class="modal-kv-row"><label>Thời gian bắt đầu</label><span id="twapview-start"></span></div>
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><span id="twapview-end"></span></div>
-        <div class="modal-kv-row"><label>Tần suất</label><span id="twapview-interval"></span></div>
-        <div class="modal-kv-row"><label>Số lệnh kế hoạch còn lại</label><span id="twapview-planned"></span></div>
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
+        <div class="modal-kv-row"><label>Số lệnh kế hoạch còn lại</label><span id="twapview-planned"></span></div>
       </div>
       <div class="modal-actions">
         <button class="modal-btn confirm" id="twapview-edit-btn" onclick="editAutoTwapFromReview()">Sửa</button>
