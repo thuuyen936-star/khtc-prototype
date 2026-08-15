@@ -637,6 +637,27 @@ Mọi popup thao tác lệnh (đặt/sửa/hủy — cả lệnh tổng và lệ
 | LT20260617-03 | Khớp hết | None | Lệnh **Mua** VIC, Avg Px 45,200 > VWAP 44,500 ⇒ **% PR = −1.57% → dưới ngưỡng −0.6%, hiện cảnh báo** |
 | LT20260617-04 | Chờ xác nhận hủy | None | Chờ ACK yêu cầu hủy |
 | LT20260618-01 | Khớp 1 phần | None | Khớp 1 phần thông thường |
-| LT20260619-01 | Khớp 1 phần | Hoạt động | **3 lệnh con do Auto TWAP sinh + 1 lệnh broker đặt tay** |
+| LT20260619-01 | Khớp 1 phần | Hoạt động | **Lệnh con Auto TWAP tự sinh động theo giờ thực (xem bên dưới) + 1 lệnh broker đặt tay** |
 
 Toàn bộ dữ liệu đã được kiểm tra tự động đảm bảo: `Fill Qty`, `Avg Px` khớp với lệnh con; `REM BAL ≥ 0`; tổng KL lệnh con ≤ Qty; giá lệnh con không vi phạm LmtPx; trạng thái nhất quán với khối lượng khớp; lệnh có Auto TWAP đều còn REM BAL > 0.
+
+### Lệnh con được nạp theo giờ thực của PC
+
+Prototype mô phỏng giao dịch trong 1 ngày, dùng giờ thực của máy (`nowMinutes()`) làm mốc "bây giờ" —
+không quan tâm ngày tháng. Vì vậy, lúc khởi động:
+
+- **Mọi lệnh con** trong `CHILD_ORDERS` chỉ được nạp vào bảng "Sổ lệnh con trong ngày" nếu giờ đặt lệnh
+  (`time`) ≤ giờ thực hiện tại. Lệnh con có giờ đặt ở "tương lai" (so với giờ thực) chưa tồn tại, không
+  được render. `Fill Qty`/`REM BAL`/`REM PLACE`/`%PR`/trạng thái (khi đang ở 1 trong 3 trạng thái theo
+  tiến độ khớp: Đã gửi/Khớp 1 phần/Khớp hết) của lệnh tổng tự động đồng bộ theo tập lệnh con đã lọc —
+  không cần đọc lại `data.js` mỗi khi giờ thay đổi.
+- **Lệnh Auto TWAP đang "Hoạt động"** (`LT20260615-01`, `LT20260619-01`) không còn lệnh con "Auto Twap"
+  gán cứng trong `data.js`. Thay vào đó, hệ thống tự sinh danh sách lệnh con giả lập ngay lúc khởi động:
+  mọi lệnh trong kế hoạch (`plan[]`, tính từ khung giờ cấu hình + REM BAL "gốc" từ lệnh con thật) có giờ
+  dự kiến ≤ giờ thực đều coi như đã đẩy và khớp hết (`trader = 'Auto Twap'`, `status = 'Khớp hết'`).
+  Nhờ vậy demo luôn nhất quán với chính kế hoạch, không cần đồng bộ tay dữ liệu mẫu mỗi khi công thức
+  lập kế hoạch (mục 6.3) thay đổi.
+- **`Avg Px`** của mọi lệnh tổng được tính **động**: bình quân gia quyền theo giá của MỌI lệnh con đã
+  khớp hiện có (kể cả lệnh Auto Twap giả lập), không còn là giá trị tĩnh trong `data.js`. Trường
+  `fillQty`/`avgPx`/`status` tĩnh trong `PARENT_ORDERS` chỉ là baseline ban đầu, luôn bị tính lại ngay
+  khi trang tải xong.

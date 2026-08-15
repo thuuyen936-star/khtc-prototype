@@ -1161,6 +1161,13 @@
     var AUTOTWAP_LABEL = { active: 'Hoạt động', paused: 'Tạm dừng', cancelled: 'Đã hủy', none: 'None' };
     var AUTOTWAP_BADGE = { active: 'badge-matched', paused: 'badge-awaiting', cancelled: 'badge-cancelled', none: 'badge-none' };
     var autoTwapConfigs = {}; // orderId -> { startTime, endTime, interval, effectiveInterval, plannedCount, plan:[{seq,session,timeMin,qty}] }
+    // Cấu hình Auto TWAP mẫu — dùng chung cho seedAutoTwapConfig() VÀ việc sinh lệnh con giả lập
+    // (buildAutoTwapSyntheticPushedOrders), tránh lặp lại cùng 1 bộ tham số ở 2 nơi.
+    var AUTOTWAP_SEED_CONFIG = {
+      'LT20260615-01': { startTime: '13:30', endTime: '14:15', interval: 15 },
+      'LT20260615-02': { startTime: '10:00', endTime: '11:00', interval: 15 },
+      'LT20260619-01': { startTime: '09:00', endTime: '11:00', interval: 15 }
+    };
     function autoTwapCellHtml(state) {
       var s = (state === 'active' || state === 'paused' || state === 'cancelled') ? state : 'none';
       return '<span class="col-autotwap ' + AUTOTWAP_BADGE[s] + '">' + AUTOTWAP_LABEL[s] + '</span>';
@@ -2942,13 +2949,14 @@
     function updateOrderAggregates(orderId) {
       var tr = document.getElementById('row-' + orderId);
       if (!tr) return;
-      var cancelled = 0, matched = 0, remainSum = 0;
+      var cancelled = 0, matched = 0, remainSum = 0, weightedPriceSum = 0;
       document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]').forEach(function (r) {
         var qty = parseQty(r.querySelector('.col-child-qty').textContent);
         var matchEl = r.querySelector('.col-child-matchqty');
         var matchQty = matchEl ? parseQty(matchEl.textContent) : 0;
         // Phần đã khớp của mọi lệnh con (kể cả đã hủy/đã sửa) đều là khớp thật → luôn cộng vào Fill Qty.
         matched += matchQty;
+        if (matchQty > 0) weightedPriceSum += matchQty * parseQty(r.dataset.price);
         var childStatus = r.querySelector('.col-child-status').textContent.trim();
         if (childStatus === 'Đã hủy') {
           cancelled += (qty - matchQty); // Hủy chỉ hủy được phần CHƯA khớp
@@ -2981,7 +2989,10 @@
       var fillpctTd = tr.querySelector('.col-fillpct');
       if (fillpctTd) fillpctTd.innerHTML = fillPctText(matched, marketVol);
 
-      var avgPx = parseNum(tr.dataset.avgpx);
+      // Avg Px = bình quân gia quyền giá khớp của MỌI lệnh con đã khớp (kể cả lệnh Auto Twap giả lập) —
+      // tính động từ dữ liệu lệnh con thay vì đọc giá trị tĩnh, để luôn khớp đúng KL đã khớp hiện có.
+      var avgPx = matched > 0 ? weightedPriceSum / matched : 0;
+      tr.dataset.avgpx = avgPx;
       var filledValueTd = tr.querySelector('.col-filledvalue');
       // Filled Value là số tiền ⇒ làm tròn về đồng, không kéo phần lẻ của Avg Px ra
       if (filledValueTd) filledValueTd.textContent = formatQty(Math.round(matched * avgPx));
@@ -3483,10 +3494,53 @@
       // (updateOrderAggregates) từ dữ liệu lệnh con thật — các ô trên chỉ là placeholder trước khi tính.
     }
 
+    // Với mỗi lệnh Auto TWAP đang "Hoạt động", các lệnh trong kế hoạch có giờ dự kiến <= giờ thực của PC
+    // coi như đã được đẩy và khớp hết — sinh trực tiếp lệnh con giả lập từ plan[] thay vì gán cứng trong
+    // data.js, để không phải đồng bộ tay mỗi khi công thức lập kế hoạch thay đổi.
+    function buildAutoTwapSyntheticPushedOrders(nowMin) {
+      var synthetic = [];
+      PARENT_ORDERS.forEach(function (o) {
+        if (o.autoTwap !== 'active') return;
+        var cfg = AUTOTWAP_SEED_CONFIG[o.orderId];
+        if (!cfg) return;
+        var startMin = timeToMinutes(cfg.startTime), endMin = timeToMinutes(cfg.endTime);
+
+        // REM BAL "gốc" tính từ lệnh con thật đã nạp (đã lọc theo giờ thực) — vì không còn lệnh con Auto
+        // Twap nào gán cứng trong data.js nữa, đây chính là mọi lệnh con hiện có của lệnh tổng này.
+        var matched = 0, remainSum = 0;
+        CHILD_ORDERS.filter(function (c) { return c.parentId === o.orderId && timeToMinutes(c.time) <= nowMin; })
+          .forEach(function (c) {
+            matched += c.matchQty;
+            if (c.status !== 'Đã hủy' && c.status !== 'Đã sửa') remainSum += (c.qty - c.matchQty);
+          });
+        var baseRemBal = o.qty - matched - remainSum;
+        if (baseRemBal <= 0) return;
+
+        var full = computeAutoTwapPlan(startMin, endMin, cfg.interval, baseRemBal);
+        if (full.error) return;
+
+        full.plan.filter(function (p) { return p.timeMin <= nowMin; }).forEach(function (p, i) {
+          var t = minutesToTimeStr(p.timeMin) + ':00';
+          synthetic.push({
+            childId: 'AUTOTWAP-' + o.orderId + '-' + (i + 1), parentId: o.orderId,
+            account: o.account, subaccount: o.subaccount, symbol: o.symbol, side: o.side,
+            time: t, matchTime: t, orderType: 'LO', trader: 'Auto Twap',
+            qty: p.qty, price: o.price, matchQty: p.qty, status: 'Khớp hết'
+          });
+        });
+      });
+      return synthetic;
+    }
+
     // ===== Dựng bảng "Sổ lệnh con trong ngày" từ CHILD_ORDERS (data.js) =====
     function renderChildOrders() {
       var tbody = document.getElementById('child-tbody');
-      tbody.innerHTML = CHILD_ORDERS.map(function (c) {
+      var nowMin = nowMinutes();
+      // Chỉ "nạp" lệnh con có giờ đặt lệnh <= giờ thực của PC — lệnh con đặt ở giờ tương lai (so với giờ
+      // thực) chưa thể tồn tại. Ghép thêm lệnh Auto Twap giả lập đã đẩy/khớp hết (nếu có).
+      tbody.innerHTML = CHILD_ORDERS.filter(function (c) {
+        return timeToMinutes(c.time) <= nowMin;
+      }).concat(buildAutoTwapSyntheticPushedOrders(nowMin)).map(function (c) {
         var sideClass = c.side === 'Mua' ? 'buy' : 'sell';
         var sideLabel = c.side + ' thông thường';
         var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
@@ -3545,9 +3599,10 @@
         effectiveInterval: result.effectiveInterval, plannedCount: result.totalCount, plan: result.plan
       };
     }
-    seedAutoTwapConfig('LT20260615-01', '13:30', '14:15', 15); // Hoạt động — Mua HPG, REM BAL 1,900
-    seedAutoTwapConfig('LT20260615-02', '10:00', '11:00', 15); // Tạm dừng — Bán FPT, REM BAL 500
-    seedAutoTwapConfig('LT20260619-01', '09:00', '11:00', 15); // Hoạt động — Bán MWG, REM BAL 1,600
+    Object.keys(AUTOTWAP_SEED_CONFIG).forEach(function (orderId) {
+      var c = AUTOTWAP_SEED_CONFIG[orderId];
+      seedAutoTwapConfig(orderId, c.startTime, c.endTime, c.interval);
+    });
 
     // Mục 1: gắn sort cho header 2 bảng
     bindSortableHeaders('bbg-thead', 'bbg-tbody');

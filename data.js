@@ -137,9 +137,10 @@ var PARENT_ORDERS = [
   {
     orderId: 'LT20260619-01', route: 'Manual', checkPx: '2', createTime: '09:00:00',
     instructions: 'Auto TWAP chia lệnh theo phiên liên tục',
-    // Đã khớp 300/3000 → trạng thái "Khớp 1 phần"; avgPx = 52500 (các lệnh con khớp đều @ 52500)
-    status: 'Khớp 1 phần', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 300, avgPx: 52500, vwap: 52478.9126,
+    // fillQty/avgPx/status chỉ là baseline — được updateOrderAggregates() tính lại NGAY khi trang tải,
+    // dựa trên lệnh con thật (CO20260619-01) + lệnh Auto Twap tự sinh theo giờ thực của PC.
+    status: 'Đã gửi', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
+    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 0, avgPx: 0, vwap: 52478.9126,
     orderType: 'LO', note: '', marketVol: 2600000,
     tradeId: '', autoTwap: 'active'
   }
@@ -163,10 +164,8 @@ var CHILD_ORDERS = [
   { childId: 'CO20260617-02', parentId: 'LT20260617-02', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'FPT', time: '14:10:12', side: 'Bán', orderType: 'LO', trader: 'ADMINHN', qty: 400, price: 77000, matchQty: 0, status: 'Đã hủy' },
   { childId: 'CO20260617-03', parentId: 'LT20260617-03', account: 'SCBB116688', subaccount: '0001067447', symbol: 'VIC', time: '09:50:22', matchTime: '09:50:55', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 800, price: 45200, matchQty: 800, status: 'Khớp hết' },
   { childId: 'CO20260618-01', parentId: 'LT20260618-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'FPT', time: '10:35:20', matchTime: '10:36:02', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 800, price: 78000, matchQty: 400, status: 'Khớp 1 phần' },
-  // Lệnh con của LT20260619-01 (đang chạy Auto TWAP): 1 lệnh broker đặt tay trước khi cài Auto TWAP,
-  // xen giữa 3 lệnh do Auto TWAP tự sinh (trader "Auto Twap") — demo "lẫn 1 lệnh con do broker đặt trước".
-  { childId: 'CO20260619-01', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:05:00', side: 'Bán', orderType: 'LO', trader: 'ADMINHN',   qty: 500, price: 52500, matchQty: 0,   status: 'Đã gửi' },
-  { childId: 'CO20260619-02', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:00:00', matchTime: '09:00:30', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 200, status: 'Khớp hết' },
-  { childId: 'CO20260619-03', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:15:00', matchTime: '09:15:35', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 100, status: 'Khớp 1 phần' },
-  { childId: 'CO20260619-04', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:30:00', side: 'Bán', orderType: 'LO', trader: 'Auto Twap', qty: 200, price: 52500, matchQty: 0,   status: 'Đã gửi' }
+  // Lệnh con của LT20260619-01 (đang chạy Auto TWAP): chỉ còn 1 lệnh broker đặt tay trước khi cài Auto
+  // TWAP. Lệnh con "Auto Twap" (trader = 'Auto Twap') không còn gán cứng ở đây nữa — được TỰ SINH lúc
+  // khởi động từ plan[] + giờ thực của PC (xem buildAutoTwapSyntheticPushedOrders trong index.html).
+  { childId: 'CO20260619-01', parentId: 'LT20260619-01', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'MWG', time: '09:05:00', side: 'Bán', orderType: 'LO', trader: 'ADMINHN',   qty: 500, price: 52500, matchQty: 0,   status: 'Đã gửi' }
 ];
