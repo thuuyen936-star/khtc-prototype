@@ -392,7 +392,7 @@
     padding:6px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
 
   /* ===== Modal: Detail (4) ===== */
-  .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px 18px;
+  .detail-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px 18px;
                   padding:14px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); margin-bottom:14px; }
   .detail-grid label { display:block; font-size:var(--fs-small); color:var(--text-dim); margin-bottom:3px; }
   .detail-grid span { font-family:var(--font-ui); font-weight:600; color:var(--text-title); font-size:var(--fs-small); }
@@ -844,10 +844,10 @@
         <div><label>Loại lệnh</label><span id="detail-ordertype"></span></div>
         <div><label>Mã CK</label><span id="detail-symbol"></span></div>
         <div><label>Qty</label><span id="detail-qty"></span></div>
+        <div><label>LMT PX</label><span id="detail-price"></span></div>
         <div><label>Fill Qty</label><span id="detail-fillqty"></span></div>
         <div><label>Rem Bal</label><span id="detail-rembal"></span></div>
         <div><label>Rem Placed</label><span id="detail-remplace"></span></div>
-        <div><label>LMT PX</label><span id="detail-price"></span></div>
         <div><label>AVG PX</label><span id="detail-avgpx"></span></div>
       </div>
       <div class="detail-notes">
