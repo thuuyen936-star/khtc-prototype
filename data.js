@@ -47,8 +47,10 @@ var PARENT_ORDERS = [
     orderId: 'LT20260615-01', route: 'Manual', checkPx: '3', createTime: '13:34:45',
     instructions: 'DNR - Do not reduce, giữ nguyên giá khi có cổ tức',
     status: 'Khớp 1 phần', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    // avgPx = bình quân gia quyền phần đã khớp của lệnh con: (350*24550 + 700*24580)/1050 = 24570
-    symbol: 'HPG', qty: 5000, price: 24600, fillQty: 1050, avgPx: 24570, vwap: 24615,
+    // avgPx = bình quân gia quyền phần đã khớp của lệnh con:
+    // (350*24550 + 700*24600)/1050 = 24583.333333 — khớp ở 2 mức giá khác nhau nên
+    // bình quân LẺ, đúng bản chất thực tế (hiển thị 6 chữ số thập phân: 24.583333)
+    symbol: 'HPG', qty: 5000, price: 24600, fillQty: 1050, avgPx: 24583.333333, vwap: 24614.7382,
     orderType: 'LO', note: 'Ưu tiên khớp trước 14h00', marketVol: 8500000,
     tradeId: 'TRD20260615-01', autoTwap: 'active'
   },
@@ -57,7 +59,7 @@ var PARENT_ORDERS = [
     instructions: 'Work the order, VWAP trong phiên',
     status: 'Đã gửi', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
     // Chưa khớp (fillQty = 0) → avgPx = 0, không hiển thị Avg Px / % PR
-    symbol: 'FPT', qty: 3500, price: 76000, fillQty: 0, avgPx: 0, vwap: 76080,
+    symbol: 'FPT', qty: 3500, price: 76000, fillQty: 0, avgPx: 0, vwap: 76078.4315,
     orderType: 'LO', note: '', marketVol: 4200000,
     tradeId: 'TRD20260615-02', autoTwap: 'paused'
   },
@@ -65,7 +67,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260616-01', route: 'Manual', checkPx: '', createTime: '09:12:08',
     instructions: '',
     status: 'Chờ xác nhận đặt', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    symbol: 'VIC', qty: 2000, price: 45000, fillQty: 0, avgPx: 0, vwap: 45050,
+    symbol: 'VIC', qty: 2000, price: 45000, fillQty: 0, avgPx: 0, vwap: 45047.9264,
     orderType: 'LO', note: '', marketVol: 3100000,
     tradeId: ''
   },
@@ -73,7 +75,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260616-02', route: 'Manual', checkPx: '2', createTime: '10:05:51',
     instructions: 'Not held, tùy nghi thời điểm khớp',
     status: 'Chờ xử lý', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'MWG', qty: 800, price: 52500, fillQty: 0, avgPx: 0, vwap: 52480,
+    symbol: 'MWG', qty: 800, price: 52500, fillQty: 0, avgPx: 0, vwap: 52483.1907,
     orderType: 'LO', note: 'Theo dõi thanh khoản trước khi khớp', marketVol: 2600000,
     tradeId: ''
   },
@@ -81,7 +83,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260617-01', route: 'Manual', checkPx: '1', createTime: '11:20:15',
     instructions: '',
     status: 'Chờ xác nhận sửa', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    symbol: 'HPG', qty: 1500, price: 24700, fillQty: 250, avgPx: 24700, vwap: 24720,
+    symbol: 'HPG', qty: 1500, price: 24700, fillQty: 250, avgPx: 24700, vwap: 24719.6153,
     orderType: 'LO', note: '', marketVol: 5000000,
     tradeId: ''
   },
@@ -89,7 +91,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260617-02', route: 'Broker', checkPx: '2', createTime: '14:05:33',
     instructions: '',
     status: 'Đã hủy', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'FPT', qty: 1200, price: 77000, fillQty: 0, avgPx: 0, vwap: 77050,
+    symbol: 'FPT', qty: 1200, price: 77000, fillQty: 0, avgPx: 0, vwap: 77052.8471,
     orderType: 'LO', note: '', marketVol: 3800000,
     tradeId: ''
   },
@@ -97,10 +99,11 @@ var PARENT_ORDERS = [
     orderId: 'LT20260617-03', route: 'Manual', checkPx: '3', createTime: '09:45:00',
     instructions: '',
     status: 'Khớp hết', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    // Khớp hết 800 @ 45200 → avgPx = 45200. VWAP thị trường thấp hơn hẳn (44500).
-    // Lệnh MUA mà AVG PX > VWAP ⇒ khớp bất lợi ⇒ % PR = -(45200/44500 - 1) = -1.57%
+    // Khớp hết 800 ở CÙNG một mức giá 45200 ⇒ avgPx tròn (đúng bản chất, không phải
+    // mọi lệnh đều có bình quân lẻ). VWAP thị trường thấp hơn hẳn (44503.2716).
+    // Lệnh MUA mà AVG PX > VWAP ⇒ khớp bất lợi ⇒ % PR = -(45200/44503.2716 - 1) = -1.57%
     // → dưới ngưỡng -0.6% nên hiện badge cảnh báo (mua đắt hơn VWAP thị trường).
-    symbol: 'VIC', qty: 800, price: 45200, fillQty: 800, avgPx: 45200, vwap: 44500,
+    symbol: 'VIC', qty: 800, price: 45200, fillQty: 800, avgPx: 45200, vwap: 44503.2716,
     orderType: 'LO', note: '', marketVol: 2900000,
     tradeId: 'TRD20260617-03'
   },
@@ -108,7 +111,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260617-04', route: 'Manual', checkPx: '1', createTime: '16:10:05',
     instructions: '',
     status: 'Chờ xác nhận hủy', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'MWG', qty: 600, price: 53000, fillQty: 0, avgPx: 0, vwap: 53000,
+    symbol: 'MWG', qty: 600, price: 53000, fillQty: 0, avgPx: 0, vwap: 52997.5834,
     orderType: 'LO', note: '', marketVol: 2200000,
     tradeId: ''
   },
@@ -116,7 +119,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260618-01', route: 'Broker', checkPx: '2', createTime: '10:30:00',
     instructions: '',
     status: 'Khớp 1 phần', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    symbol: 'FPT', qty: 2000, price: 78000, fillQty: 400, avgPx: 78000, vwap: 78050,
+    symbol: 'FPT', qty: 2000, price: 78000, fillQty: 400, avgPx: 78000, vwap: 78046.2915,
     orderType: 'LO', note: '', marketVol: 4500000,
     tradeId: 'TRD20260618-01'
   },
@@ -127,7 +130,7 @@ var PARENT_ORDERS = [
     orderId: 'LT20260806-01', route: 'Broker', checkPx: '', createTime: '09:15:00',
     instructions: '',
     status: 'Chờ xác nhận đặt', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
-    symbol: 'VCB', qty: 2000, price: 88000, fillQty: 0, avgPx: 0, vwap: 88500,
+    symbol: 'VCB', qty: 2000, price: 88000, fillQty: 0, avgPx: 0, vwap: 88497.1628,
     orderType: 'LO', note: 'Ưu tiên giá tốt', marketVol: 6200000,
     tradeId: ''
   },
@@ -136,7 +139,7 @@ var PARENT_ORDERS = [
     instructions: 'Auto TWAP chia lệnh theo phiên liên tục',
     // Đã khớp 400/3000 → trạng thái "Khớp 1 phần"; avgPx = 52500 (các lệnh con khớp đều @ 52500)
     status: 'Khớp 1 phần', side: 'Bán', account: 'SCBFCA8060', subaccount: 'PPL',
-    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 400, avgPx: 52500, vwap: 52480,
+    symbol: 'MWG', qty: 3000, price: 52500, fillQty: 400, avgPx: 52500, vwap: 52478.9126,
     orderType: 'LO', note: '', marketVol: 2600000,
     tradeId: '', autoTwap: 'active'
   }
@@ -151,7 +154,7 @@ var CHILD_ORDERS = [
   { childId: 'CO20260615-05', parentId: 'LT20260615-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'HPG', time: '13:45:37', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 200,  price: 24000, matchQty: 0,   status: 'Đã hủy' },
   { childId: 'CO20260615-06', parentId: 'LT20260615-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'HPG', time: '13:36:59', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 100,  price: 24450, matchQty: 0,   status: 'Đã gửi' },
   { childId: 'CO20260615-09', parentId: 'LT20260615-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'HPG', time: '13:50:12', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 600,  price: 24550, matchQty: 350, status: 'Khớp 1 phần' },
-  { childId: 'CO20260615-10', parentId: 'LT20260615-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'HPG', time: '13:51:40', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 700,  price: 24580, matchQty: 700, status: 'Khớp hết' },
+  { childId: 'CO20260615-10', parentId: 'LT20260615-01', account: 'SCBB116688', subaccount: '0001067447', symbol: 'HPG', time: '13:51:40', side: 'Mua', orderType: 'LO', trader: 'ADMINHN', qty: 700,  price: 24600, matchQty: 700, status: 'Khớp hết' },
   { childId: 'CO20260615-07', parentId: 'LT20260615-02', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'FPT', time: '15:41:10', side: 'Bán', orderType: 'LO', trader: 'ADMINHN', qty: 2000, price: 76000, matchQty: 0, status: 'Đã gửi' },
   // Đặt 3,000/3,500 → còn REM BAL 500 để Auto TWAP (đang Tạm dừng) có phần khối lượng còn lại mà chạy tiếp
   { childId: 'CO20260615-08', parentId: 'LT20260615-02', account: 'SCBFCA8060', subaccount: 'PPL', symbol: 'FPT', time: '15:40:55', side: 'Bán', orderType: 'LO', trader: 'ADMINHN', qty: 1000, price: 76200, matchQty: 0, status: 'Đã gửi' },

@@ -65,8 +65,8 @@ Quy ước Mua/Bán: **Mua = xanh lá**, **Bán = đỏ** — áp dụng cho tex
 | `qty` | int | Khối lượng đặt |
 | `price` | int (VND) | LmtPx — giá giới hạn |
 | `fillQty` | int | KL đã khớp (tính từ lệnh con) |
-| `avgPx` | int (VND) | Giá khớp bình quân (tính từ lệnh con) |
-| `vwap` | int (VND) | VWAP thị trường |
+| `avgPx` | **decimal** (VND) | Giá khớp bình quân (tính từ lệnh con) — **không làm tròn**, xem A1 |
+| `vwap` | **decimal** (VND) | VWAP thị trường — **không làm tròn**, xem A1 |
 | `orderType` | enum | `LO` (Limit) / `MP` (Market) |
 | `marketVol` | int | KL giao dịch toàn thị trường của mã CK |
 | `note`, `tradeId` | string | |

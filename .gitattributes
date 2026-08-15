@@ -1,0 +1,7 @@
+# Giữ LF trong repo VÀ trong working tree khi checkout.
+#
+# Máy Windows thường đặt core.autocrlf=true, khiến mỗi lần checkout ghi file ra
+# CRLF và tạo diff ma hàng trăm dòng khi người khác sửa cùng file. Dòng này khoá
+# lại để mọi máy (Windows/macOS/Linux) đều thấy cùng một nội dung byte-for-byte.
+# text=auto nên file nhị phân (ảnh, font, .docx) không bị đụng.
+* text=auto eol=lf
