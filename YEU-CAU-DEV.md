@@ -661,3 +661,9 @@ không quan tâm ngày tháng. Vì vậy, lúc khởi động:
   khớp hiện có (kể cả lệnh Auto Twap giả lập), không còn là giá trị tĩnh trong `data.js`. Trường
   `fillQty`/`avgPx`/`status` tĩnh trong `PARENT_ORDERS` chỉ là baseline ban đầu, luôn bị tính lại ngay
   khi trang tải xong.
+- Bảng "Sổ lệnh con trong ngày" có thêm cột **"Giá khớp"** (ngay sau "Giá đặt"), để trống nếu lệnh con
+  chưa khớp. Lệnh con thường (LO thủ công) giữ quy ước "giá khớp = giá đặt" như trước. Riêng lệnh Auto
+  Twap tự sinh có giá khớp **mô phỏng giá thị trường**: dao động xen kẽ quanh VWAP của lệnh tổng, làm
+  tròn đúng bước giá HOSE (giá < 10,000 → bước 10đ; 10,000–49,900 → bước 50đ; ≥ 50,000 → bước 100đ),
+  luôn nằm trong biên độ giá (trần/sàn) của mã — nên khác giá đặt và khác nhau giữa các lệnh. Bảng
+  "Chi tiết lệnh khớp" ở màn Detail cũng dùng cùng giá khớp này.

@@ -224,7 +224,8 @@
   #bbg-tbody td:nth-child(20), #bbg-tbody td:nth-child(21), #bbg-tbody td:nth-child(22),
   #bbg-tbody td:nth-child(23),
   #child-tbody td:nth-child(5), #child-tbody td:nth-child(10),
-  #child-tbody td:nth-child(11), #child-tbody td:nth-child(12), #child-tbody td:nth-child(13) {
+  #child-tbody td:nth-child(11), #child-tbody td:nth-child(12), #child-tbody td:nth-child(13),
+  #child-tbody td:nth-child(14) {
     font-family:var(--font-ui); font-variant-numeric:tabular-nums;
   }
 
@@ -707,6 +708,7 @@
                 <th class="sortable">Người đặt</th>
                 <th class="sortable">KL đặt</th>
                 <th class="sortable">Giá đặt</th>
+                <th class="sortable">Giá khớp</th>
                 <th class="sortable">KL khớp</th>
                 <th class="sortable">KL còn lại</th>
               </tr>
@@ -724,6 +726,7 @@
                 <th><input oninput="updateTableSearch(this,'child',10)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'child',11)" placeholder=""></th>
                 <th><input oninput="updateTableSearch(this,'child',12)" placeholder=""></th>
+                <th><input oninput="updateTableSearch(this,'child',13)" placeholder=""></th>
               </tr>
             </thead>
             <tbody id="child-tbody"><!-- Dựng động từ CHILD_ORDERS (data.js) qua renderChildOrders() --></tbody>
@@ -1120,6 +1123,27 @@
     SECURITIES.forEach(function (s) {
       SECURITY_PRICES[s.symbol] = { ceiling: s.ceilingPrice, floor: s.floorPrice };
     });
+
+    // Bước giá (tick size) theo quy tắc HOSE, dùng để làm tròn giá khớp mô phỏng của lệnh Auto Twap.
+    function hoseTickSize(price) {
+      if (price < 10000) return 10;
+      if (price < 50000) return 50;
+      return 100;
+    }
+    function roundToTick(price, tick) {
+      return Math.round(price / tick) * tick;
+    }
+
+    // Mô phỏng giá khớp thị trường cho lệnh Auto Twap: dao động nhẹ, xen kẽ quanh VWAP (giá bình quân
+    // thị trường), làm tròn đúng bước giá HOSE, luôn nằm trong biên độ giá của mã. Dao động theo số thứ
+    // tự lệnh trong kế hoạch (không dùng Math.random()) để demo nhất quán mỗi lần tải lại trang.
+    function simulateAutoTwapMatchPrice(vwap, symbol, seq) {
+      var tick = hoseTickSize(vwap);
+      var band = SECURITY_PRICES[symbol] || { floor: 0, ceiling: Infinity };
+      var wobble = [0, 1, -1, 2, -2][seq % 5] * tick;
+      var px = roundToTick(vwap, tick) + wobble;
+      return Math.min(band.ceiling, Math.max(band.floor, px));
+    }
     var STATUS_BADGE = {
       'Đã gửi': 'badge-sent',
       'Chờ xử lý': 'badge-queued',
@@ -2814,6 +2838,7 @@
       tr.dataset.parentId = parentTr.dataset.orderId;
       tr.dataset.childId = generateChildId();
       tr.dataset.price = price; // Giá thật (VND) — nguồn dữ liệu cho tính toán, khác với ô hiển thị (đơn vị nghìn)
+      tr.dataset.matchprice = price; // Lệnh mới chưa khớp — mặc định = giá đặt, giống quy ước lệnh LO
       tr.innerHTML =
         '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
         '<span class="tbtn" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
@@ -2821,7 +2846,7 @@
         '<td class="link">' + accountCode + '</td><td class="col-child-subaccount">' + subaccountCode + '</td>' +
         '<td class="col-child-symbol">' + symbol + '</td><td class="col-child-time">' + time + '</td>' +
         '<td class="' + sideClass + '">' + sideLabel + '</td><td><span class="col-child-status badge-sent">Đã gửi</span></td><td>LO</td><td class="col-child-trader">' + traderCellHtml('ADMINHN') + '</td>' +
-        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + formatPrice(parseQty(price)) + '</td><td class="col-child-matchqty">0</td><td class="col-child-remain">' + qty + '</td>';
+        '<td class="col-child-qty">' + qty + '</td><td class="col-child-price">' + formatPrice(parseQty(price)) + '</td><td class="col-child-matchprice"></td><td class="col-child-matchqty">0</td><td class="col-child-remain">' + qty + '</td>';
 
       document.getElementById('child-tbody').appendChild(tr);
       filterChildOrders(selectedOrderId);
@@ -2956,7 +2981,7 @@
         var matchQty = matchEl ? parseQty(matchEl.textContent) : 0;
         // Phần đã khớp của mọi lệnh con (kể cả đã hủy/đã sửa) đều là khớp thật → luôn cộng vào Fill Qty.
         matched += matchQty;
-        if (matchQty > 0) weightedPriceSum += matchQty * parseQty(r.dataset.price);
+        if (matchQty > 0) weightedPriceSum += matchQty * parseQty(r.dataset.matchprice);
         var childStatus = r.querySelector('.col-child-status').textContent.trim();
         if (childStatus === 'Đã hủy') {
           cancelled += (qty - matchQty); // Hủy chỉ hủy được phần CHƯA khớp
@@ -3131,7 +3156,7 @@
         var matchTime = r.dataset.matchtime || '';
         var placedQty = r.querySelector('.col-child-qty').textContent.trim();
         var matchQty = r.querySelector('.col-child-matchqty').textContent.trim();
-        var price = formatPrice(parseQty(r.dataset.price)); // giá khớp = giá đặt (lệnh LO khớp đúng giá)
+        var price = formatPrice(parseQty(r.dataset.matchprice)); // giá khớp thật của lệnh con — có thể khác giá đặt (Auto Twap khớp giá thị trường)
         var remain = r.querySelector('.col-child-remain').textContent.trim();
         var status = r.querySelector('.col-child-status').textContent.trim();
         rows += '<tr><td>' + placedTime + '</td><td>' + matchTime + '</td><td class="mono">' + placedQty +
@@ -3525,7 +3550,8 @@
             childId: 'AUTOTWAP-' + o.orderId + '-' + (i + 1), parentId: o.orderId,
             account: o.account, subaccount: o.subaccount, symbol: o.symbol, side: o.side,
             time: t, matchTime: t, orderType: 'LO', trader: 'Auto Twap',
-            qty: p.qty, price: o.price, matchQty: p.qty, status: 'Khớp hết'
+            qty: p.qty, price: o.price, matchQty: p.qty, status: 'Khớp hết',
+            matchPrice: simulateAutoTwapMatchPrice(o.vwap, o.symbol, p.seq)
           });
         });
       });
@@ -3546,7 +3572,8 @@
         var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
         var disabledCls = (c.status === 'Đã hủy' || c.status === 'Chờ xác nhận' || c.status === 'Khớp hết') ? ' disabled' : '';
         // data-matchtime: thời điểm khớp — chỉ có ở lệnh con đã khớp (xem buildFillHistory)
-        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '" data-matchtime="' + (c.matchTime || '') + '">' +
+        var matchPrice = c.matchPrice !== undefined ? c.matchPrice : c.price;
+        return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '" data-matchprice="' + formatQty(matchPrice) + '" data-matchtime="' + (c.matchTime || '') + '">' +
           '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
           '<span class="tbtn' + disabledCls + '" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +
           '<span class="tbtn red' + disabledCls + '" style="padding:2px 8px;" onclick="openCancelChildModal(this.closest(\'tr\'))">Hủy</span></td>' +
@@ -3560,6 +3587,7 @@
           '<td class="col-child-trader">' + traderCellHtml(c.trader) + '</td>' +
           '<td class="col-child-qty">' + formatQty(c.qty) + '</td>' +
           '<td class="col-child-price">' + formatPrice(c.price) + '</td>' +
+          '<td class="col-child-matchprice">' + (c.matchQty > 0 ? formatPrice(matchPrice) : '') + '</td>' +
           '<td class="col-child-matchqty">' + formatQty(c.matchQty) + '</td>' +
           '<td class="col-child-remain">' + formatQty(remain) + '</td>' +
           '</tr>';
