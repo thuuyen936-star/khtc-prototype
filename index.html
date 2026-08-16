@@ -1312,6 +1312,7 @@
     function setupTwapTimePart(el, maxValue, nextEl) {
       var prevValue = el.value; // giá trị trước thay đổi, chỉ dùng để tách phần vừa nhập ở lớp 'input'
       var replaceNext = false;
+      var composing = false;    // bộ gõ tiếng Việt/IME đang soạn ký tự
 
       // Làm sạch về giá trị hợp lệ gần nhất: chỉ số, tối đa 2 chữ số, không vượt maxValue
       function sanitize(v) {
@@ -1328,6 +1329,23 @@
         if (fireInputChain && nextEl && v.length === 2) { nextEl.focus(); nextEl.select(); }
       }
 
+      // Chuẩn hoá lại nội dung ô sau khi giá trị đã thay đổi qua đường KHÔNG do keydown xử lý
+      function normalizeAfterInput() {
+        var v = el.value;
+        // Thay đổi đi qua đường không phải keydown trong khi ô vẫn đang ở trạng thái "gõ là thay thế"
+        // (vùng bôi đen đã bị trình duyệt thu gọn nên giá trị cũ không bị thay) → tách lấy phần vừa nhập.
+        if (replaceNext && prevValue && v.length > prevValue.length) {
+          if (v.indexOf(prevValue) === 0) v = v.slice(prevValue.length);
+          else if (v.lastIndexOf(prevValue) === v.length - prevValue.length) v = v.slice(0, v.length - prevValue.length);
+        }
+        replaceNext = false;
+        var clean = sanitize(v);
+        if (clean !== el.value) { el.value = clean; el.setSelectionRange(clean.length, clean.length); }
+        prevValue = clean;
+        onAutoTwapInputsChanged();
+        if (nextEl && clean.length === 2) { nextEl.focus(); nextEl.select(); }
+      }
+
       el.addEventListener('focus', function () {
         prevValue = el.value;
         replaceNext = true; // ký tự đầu tiên gõ sau khi focus luôn thay thế toàn bộ giá trị cũ
@@ -1339,7 +1357,7 @@
 
       el.addEventListener('keydown', function (e) {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
-        if (e.isComposing || e.key === 'Process') return; // IME đang soạn → để lớp 'input' xử lý
+        if (composing || e.isComposing || e.key === 'Process') return; // IME đang soạn → xử lý ở compositionend
         if (e.key >= '0' && e.key <= '9') {
           e.preventDefault();
           var selLen = el.selectionEnd - el.selectionStart;
@@ -1362,20 +1380,18 @@
         }
       });
 
+      // TUYỆT ĐỐI không ghi vào el.value khi IME đang soạn: ghi đè lúc này phá trạng thái soạn của bộ gõ,
+      // làm ký tự vừa gõ biến mất và không gõ tiếp được cho tới khi focus lại ô (lỗi chỉ xảy ra với bàn
+      // phím tiếng Việt, bàn phím tiếng Anh không đi qua composition nên không lộ ra).
+      el.addEventListener('compositionstart', function () { composing = true; });
+      el.addEventListener('compositionend', function () {
+        composing = false;
+        normalizeAfterInput(); // soạn xong mới chuẩn hoá — lúc này ghi vào ô đã an toàn
+      });
+
       el.addEventListener('input', function () {
-        var v = el.value;
-        // Thay đổi đi qua đường không phải keydown trong khi ô vẫn đang ở trạng thái "gõ là thay thế"
-        // (vùng bôi đen đã bị trình duyệt thu gọn nên giá trị cũ không bị thay) → tách lấy phần vừa nhập.
-        if (replaceNext && prevValue && v.length > prevValue.length) {
-          if (v.indexOf(prevValue) === 0) v = v.slice(prevValue.length);
-          else if (v.lastIndexOf(prevValue) === v.length - prevValue.length) v = v.slice(0, v.length - prevValue.length);
-        }
-        replaceNext = false;
-        var clean = sanitize(v);
-        if (clean !== el.value) { el.value = clean; el.setSelectionRange(clean.length, clean.length); }
-        prevValue = clean;
-        onAutoTwapInputsChanged();
-        if (nextEl && clean.length === 2) { nextEl.focus(); nextEl.select(); }
+        if (composing) return; // để nguyên cho IME, sẽ xử lý ở compositionend
+        normalizeAfterInput();
       });
 
       el.addEventListener('blur', function () {
