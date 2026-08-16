@@ -1174,15 +1174,25 @@
       return Math.round(price / tick) * tick;
     }
 
-    // Mô phỏng giá khớp thị trường cho lệnh Auto Twap: dao động nhẹ, xen kẽ quanh VWAP (giá bình quân
-    // thị trường), làm tròn đúng bước giá HOSE, luôn nằm trong biên độ giá của mã. Dao động theo số thứ
-    // tự lệnh trong kế hoạch (không dùng Math.random()) để demo nhất quán mỗi lần tải lại trang.
-    function simulateAutoTwapMatchPrice(vwap, symbol, seq) {
-      var tick = hoseTickSize(vwap);
+    // Giới hạn giá khớp theo đúng bản chất lệnh LO: lệnh Mua chỉ khớp ở giá <= giá đặt, lệnh Bán chỉ khớp
+    // ở giá >= giá đặt (khớp "bằng hoặc tốt hơn" giá đặt). Kết hợp thêm biên độ giá trần/sàn của mã.
+    function clampMatchPriceToLimit(px, side, limitPrice, symbol) {
       var band = SECURITY_PRICES[symbol] || { floor: 0, ceiling: Infinity };
+      var lo = side === 'Mua' ? band.floor : Math.max(band.floor, limitPrice);
+      var hi = side === 'Mua' ? Math.min(band.ceiling, limitPrice) : band.ceiling;
+      if (lo > hi) return limitPrice; // giá đặt nằm ngoài biên độ (dữ liệu bất thường) — lấy đúng giá đặt
+      return Math.min(hi, Math.max(lo, px));
+    }
+
+    // Mô phỏng giá khớp thị trường cho lệnh Auto Twap: dao động nhẹ, xen kẽ quanh VWAP (giá bình quân
+    // thị trường), làm tròn đúng bước giá HOSE, luôn nằm trong biên độ giá của mã VÀ không vượt giá đặt
+    // theo quy tắc LO ở trên. Dao động theo số thứ tự lệnh trong kế hoạch (không dùng Math.random()) để
+    // demo nhất quán mỗi lần tải lại trang.
+    function simulateAutoTwapMatchPrice(vwap, symbol, seq, side, limitPrice) {
+      var tick = hoseTickSize(vwap);
       var wobble = [0, 1, -1, 2, -2][seq % 5] * tick;
       var px = roundToTick(vwap, tick) + wobble;
-      return Math.min(band.ceiling, Math.max(band.floor, px));
+      return clampMatchPriceToLimit(px, side, limitPrice, symbol);
     }
     var STATUS_BADGE = {
       'Đã gửi': 'badge-sent',
@@ -3080,7 +3090,7 @@
       var now = new Date();
       var time = now.toLocaleTimeString('vi-VN', { hour12: false });
       var sideClass = side === 'Mua' ? 'buy' : 'sell';
-      var sideLabel = side + ' thông thường';
+      var sideLabel = side + ' thường';
 
       var tr = document.createElement('tr');
       tr.className = 'row-new-flash';
@@ -3820,7 +3830,7 @@
             account: o.account, subaccount: o.subaccount, symbol: o.symbol, side: o.side,
             time: t, matchTime: t, orderType: 'LO', trader: 'Auto Twap',
             qty: p.qty, price: o.price, matchQty: p.qty, status: 'Khớp hết',
-            matchPrice: simulateAutoTwapMatchPrice(o.vwap, o.symbol, p.seq)
+            matchPrice: simulateAutoTwapMatchPrice(o.vwap, o.symbol, p.seq, o.side, o.price)
           });
         });
       });
@@ -3837,11 +3847,15 @@
         return timeToMinutes(c.time) <= nowMin;
       }).concat(buildAutoTwapSyntheticPushedOrders(nowMin)).map(function (c) {
         var sideClass = c.side === 'Mua' ? 'buy' : 'sell';
-        var sideLabel = c.side + ' thông thường';
+        var sideLabel = c.side + ' thường';
         var remain = (c.status === 'Đã hủy') ? 0 : (c.qty - c.matchQty); // Lệnh đã hủy thì KL còn lại luôn = 0
         var disabledCls = (c.status === 'Đã hủy' || c.status === 'Chờ xác nhận' || c.status === 'Khớp hết') ? ' disabled' : '';
         // data-matchtime: thời điểm khớp — chỉ có ở lệnh con đã khớp (xem buildFillHistory)
-        var matchPrice = c.matchPrice !== undefined ? c.matchPrice : c.price;
+        // Mọi lệnh con giả định đều phải tuân thủ quy tắc LO (Mua khớp <= giá đặt, Bán khớp >= giá đặt) —
+        // chốt chặn ngay tại đây để dữ liệu mẫu thêm sau này cũng không thể vi phạm.
+        var matchPrice = c.matchPrice !== undefined
+          ? clampMatchPriceToLimit(c.matchPrice, c.side, c.price, c.symbol)
+          : c.price;
         return '<tr data-parent-id="' + c.parentId + '" data-child-id="' + c.childId + '" data-price="' + formatQty(c.price) + '" data-matchprice="' + formatQty(matchPrice) + '" data-matchtime="' + (c.matchTime || '') + '">' +
           '<td><span class="child-tick" onclick="toggleChildTickRow(this)"></span>' +
           '<span class="tbtn' + disabledCls + '" style="padding:2px 8px;" onclick="editChildOrder(this.closest(\'tr\'))">Sửa</span> ' +

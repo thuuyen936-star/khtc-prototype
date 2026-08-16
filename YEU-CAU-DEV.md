@@ -228,8 +228,10 @@ Màu header: các cột **Fill Qty → Số hiệu lệnh** màu xanh dương (n
 
 **14 cột:** Thao tác (`Sửa` / `Hủy` + checkbox hủy hàng loạt) → Tài khoản → Tài khoản BBG → Mã CK → Thời gian → Lệnh → Trạng thái → Kiểu lệnh → **Người đặt** → KL đặt → Giá đặt → **Giá khớp** → KL khớp → KL còn lại
 
+- **Lệnh**: hiển thị `Mua thường` / `Bán thường` (tô màu theo quy ước Mua/Bán ở §A2).
+
 - **Người đặt**: nếu là `Auto Twap` → hiển thị badge **màu tím**; nếu là user thường → chữ thường.
-- **Giá khớp**: để trống nếu chưa khớp. Lệnh LO thủ công = giá đặt; lệnh Auto Twap = giá thị trường mô phỏng (xem mục 6.3).
+- **Giá khớp**: để trống nếu chưa khớp. Lệnh LO thủ công = giá đặt; lệnh Auto Twap = giá thị trường mô phỏng (xem mục 6.3). **Mọi lệnh con — kể cả Auto Twap — bắt buộc tuân thủ quy tắc khớp của lệnh LO: lệnh Mua khớp ở giá ≤ giá đặt, lệnh Bán khớp ở giá ≥ giá đặt** (khớp bằng hoặc tốt hơn giá đặt).
 - Nút `Sửa`/`Hủy` bị disabled khi lệnh con ở trạng thái `Đã hủy`, `Đã sửa`, `Khớp hết`, `Chờ xác nhận`.
 - **Hủy lệnh con (đơn lẻ hoặc hàng loạt) bị khóa nếu Auto TWAP của lệnh tổng đang "Hoạt động"** — phải bấm "Tạm dừng" trước, tương tự quy tắc đã áp dụng cho đặt lệnh con thủ công (xem mục 7.2).
 - **Dòng "Tổng cộng" cố định cuối bảng** (dính đáy khi cuộn, giống `thead` dính đỉnh): tổng KL đặt/KL khớp/KL còn lại tính theo **các dòng đang hiển thị** — tức là theo lệnh tổng đang chọn và bộ lọc tìm kiếm cột hiện tại, không phải tổng toàn bộ dữ liệu.
@@ -272,7 +274,7 @@ Số hiệu lệnh tổng: <orderId>
 - **Sắp xếp các dòng theo Thời gian khớp tăng dần** (không phải thời gian đặt) — đúng trình tự lệnh khớp thực tế xảy ra.
 - **Thời gian khớp** đọc từ trường `matchTime` của lệnh con (xem A3) — độc lập với `time` (thời gian đặt). Backend phải trả về **cả 2 mốc thời gian** cho lệnh con đã khớp.
 - **KL đặt** = `qty`, **KL khớp** = `matchQty` của chính lệnh con đó.
-- **Giá khớp**: lệnh `LO` thủ công khớp đúng giá đặt; lệnh Auto Twap khớp tại giá thị trường mô phỏng, có thể khác giá đặt và khác nhau giữa các lệnh (xem mục 6.3).
+- **Giá khớp**: lệnh `LO` thủ công khớp đúng giá đặt; lệnh Auto Twap khớp tại giá thị trường mô phỏng, có thể khác giá đặt và khác nhau giữa các lệnh (xem mục 6.3) — nhưng luôn **bằng hoặc tốt hơn giá đặt** (Mua ≤ giá đặt, Bán ≥ giá đặt).
 - **KL còn lại** = `Rem Bal + Rem Placed` của **cả lệnh tổng** ngay **sau** lần khớp này, không phải KL còn lại riêng của lệnh con đó. Công thức: `Qty − (tổng KL khớp cộng dồn của mọi lệnh con trong bảng, tính đến và bao gồm dòng này, theo thứ tự thời gian khớp)`. Cho biết lệnh tổng còn lại bao nhiêu tại từng mốc khớp trong lịch sử.
 
 ---
@@ -719,3 +721,7 @@ không quan tâm ngày tháng. Vì vậy, lúc khởi động:
   tròn đúng bước giá HOSE (giá < 10,000 → bước 10đ; 10,000–49,900 → bước 50đ; ≥ 50,000 → bước 100đ),
   luôn nằm trong biên độ giá (trần/sàn) của mã — nên khác giá đặt và khác nhau giữa các lệnh. Bảng
   "Chi tiết lệnh khớp" ở màn Detail cũng dùng cùng giá khớp này.
+- **Quy tắc bắt buộc với mọi lệnh con giả định (kể cả Auto Twap): giá khớp phải bằng hoặc tốt hơn giá đặt**
+  — lệnh **Mua** khớp ở giá **≤ giá đặt**, lệnh **Bán** khớp ở giá **≥ giá đặt**. Giá thị trường mô phỏng
+  sau khi dao động quanh VWAP sẽ bị chặn lại theo quy tắc này (kết hợp với biên độ trần/sàn) trước khi
+  dùng, nên `Avg Px` của lệnh tổng cũng luôn nằm đúng phía so với `LmtPx`.
