@@ -416,13 +416,13 @@ Cài đặt Auto TWAP                    ✕
 SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
             MWG
            [BÁN]
-── Cấu hình chia lệnh (REM BAL: 1,600) ──
+── Cấu hình chia lệnh (REM BAL: 1,900) ──
 Thời gian bắt đầu      [09:00]
 Thời gian kết thúc     [11:00]
-Tần suất (phút)        [15]
+Tần suất tối thiểu (phút)  [15]
 ── Dự kiến ──────────────────────────
 Số lệnh        1 ATO + 7 liên tục = 8 lệnh
-KL mỗi lệnh    200
+KL mỗi lệnh    200 – 300
 Tần suất hiệu lực   15 phút
 [thông báo lỗi]
         [Hủy]  [Xác nhận]
@@ -430,9 +430,10 @@ Tần suất hiệu lực   15 phút
 
 **Quy tắc nhập:**
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
-- **Thời gian kết thúc**, **Tần suất (phút)**: broker tự nhập.
+- **Thời gian kết thúc**, **Tần suất tối thiểu (phút)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
 - **Ô giờ luôn hiển thị định dạng 24h (HH:MM)** — dùng ô nhập chữ tự build (không phải `<input type="time">` gốc của trình duyệt, vì định dạng 12h/24h của input đó phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần). Tự thêm dấu `:` khi gõ đủ 3 chữ số trở lên; khi rời khỏi ô, giờ/phút ngoài phạm vi hợp lệ tự chặn về 00–23 / 00–59.
 - Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
+- "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư.
 
 ### 6.3. Khung giờ phiên & công thức
 
@@ -451,7 +452,9 @@ clampedEnd     = min(endTime,   14:30)
 overlapLunch   = phần giao của [clampedStart, clampedEnd] với [11:30, 13:00]
 availableMin   = max(0, clampedEnd − clampedStart − overlapLunch)
 
-contCount  = floor(availableMin / Tần suất)
+// Tần suất broker nhập chỉ là NGƯỠNG TỐI THIỂU giữa 2 lần đẩy lệnh — contCount là số lần đẩy lệnh liên
+// tục TỐI ĐA vẫn thỏa ngưỡng này (floor đảm bảo availableMin/contCount luôn ≥ Tần suất đã nhập)
+contCount  = floor(availableMin / Tần suất tối thiểu)
 totalCount = contCount + (hasAto?1:0) + (hasAtc?1:0)
 
 // Chẵn lô 100: nếu totalCount lệnh sẽ khiến 1 lệnh < 100 cổ phiếu, giảm số lệnh liên tục
@@ -459,12 +462,21 @@ maxByLot100 = floor(REM BAL / 100)
 nếu totalCount > maxByLot100:
     contCount  = maxByLot100 − (hasAto?1:0) − (hasAtc?1:0)
     totalCount = contCount + (hasAto?1:0) + (hasAtc?1:0)
-    Tần suất hiệu lực = floor(availableMin / contCount)   ← hiển thị lại cho broker, kèm ghi chú "đã tự điều chỉnh"
+
+// Tần suất hiệu lực LUÔN được tính lại bằng cách dàn đều availableMin cho đúng contCount lệnh — không
+// chỉ khi bị chẵn lô 100 ép giảm như trên, mà ở MỌI trường hợp — để lấp kín toàn bộ khung giờ khả dụng
+// thay vì đặt lệnh cách đúng "Tần suất tối thiểu" rồi bỏ phí thời gian dư ở cuối khung giờ.
+Tần suất hiệu lực = floor(availableMin / contCount)   ← hiển thị lại cho broker, không kèm ghi chú gì thêm
 
 // Chia đều REM BAL cho MỌI lệnh trong kế hoạch (kể cả ATO/ATC)
-KL mỗi lệnh (trừ lệnh cuối) = floor(REM BAL / totalCount / 100) × 100
-KL lệnh cuối cùng (theo thời gian, ATC nếu có, ngược lại lệnh liên tục cuối)
-                            = REM BAL − KL mỗi lệnh × (totalCount − 1)   ← nhận phần dư, đảm bảo khớp đúng REM BAL
+KL mỗi lệnh (base)  = floor(REM BAL / totalCount / 100) × 100
+phần dư             = REM BAL − KL mỗi lệnh × totalCount
+số lệnh nhận thêm   = floor(phần dư / 100)
+KL lệnh nhận thêm   = KL mỗi lệnh + 100
+
+// Rải "số lệnh nhận thêm" lô 100 cho các lệnh CUỐI CÙNG (theo thời gian) thay vì dồn hết phần dư vào
+// đúng 1 lệnh cuối — chênh lệch giữa lệnh lớn nhất/nhỏ nhất trong kế hoạch tối đa chỉ còn 1 lô 100 cổ
+// phiếu (trước đây có thể lệch tới hàng chục lần khi REM BAL lớn/tần suất dày).
 ```
 
 > **Bắt buộc:** KL mỗi lệnh TWAP phải là **bội số của 100** (lô chẵn), kể cả lệnh ATO/ATC.
@@ -505,7 +517,7 @@ SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
 │ Trạng thái            Hoạt động    │ ← xanh lá / Tạm dừng: vàng
 │ Thời gian bắt đầu     09:00        │
 │ Thời gian kết thúc    11:00        │
-│ Tần suất              15 phút      │
+│ Tần suất hiệu lực     15 phút      │
 │ Số lệnh kế hoạch còn lại 5 lệnh    │
 │ Số lệnh đã sinh       3 lệnh       │ ← đếm lệnh con có người đặt = Auto Twap
 └────────────────────────────────────┘

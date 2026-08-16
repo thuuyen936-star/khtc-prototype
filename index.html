@@ -1047,7 +1047,7 @@
       <div class="modal-kv-group">
         <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="text" class="twap-time-input" id="twap-start-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="text" class="twap-time-input" id="twap-end-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
-        <div class="modal-kv-row"><label>Tần suất (phút)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>Tần suất tối thiểu (phút)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
       </div>
 
       <div class="twap-section-title">Dự kiến</div>
@@ -1080,7 +1080,7 @@
       </div>
       <div class="modal-kv-group modal-kv-group-2col">
         <div class="modal-kv-row"><label>Trạng thái</label><span id="twapview-status"></span></div>
-        <div class="modal-kv-row"><label>Tần suất</label><span id="twapview-interval"></span></div>
+        <div class="modal-kv-row"><label>Tần suất hiệu lực</label><span id="twapview-interval"></span></div>
         <div class="modal-kv-row"><label>Thời gian bắt đầu</label><span id="twapview-start"></span></div>
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><span id="twapview-end"></span></div>
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
@@ -1317,23 +1317,27 @@
         return { error: 'REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc.' };
       }
 
-      var effectiveInterval = interval;
-      var adjusted = false;
       if (totalCount > maxByLot100) {
         contCount = maxByLot100 - requiredFixed;
         totalCount = contCount + requiredFixed;
-        effectiveInterval = contCount > 0 ? Math.floor(availableMin / contCount) : null;
-        adjusted = true;
       }
 
       if (totalCount === 0) {
         return { error: 'Khung giờ/Tần suất không hợp lệ, không lập được kế hoạch.' };
       }
 
+      // Tần suất nhập vào (interval) chỉ là ngưỡng TỐI THIỂU giữa 2 lần đẩy lệnh — hệ thống luôn tự
+      // chọn contCount tối đa thỏa ngưỡng này rồi dàn đều availableMin cho đúng contCount lệnh, thay vì
+      // đặt lệnh cách đúng `interval` phút và bỏ phí thời gian dư ở cuối khung giờ.
+      var effectiveInterval = contCount > 0 ? Math.floor(availableMin / contCount) : null;
+
+      // Rải phần dư (bội số 100) cho vài lệnh CUỐI CÙNG (mỗi lệnh +1 lô) thay vì dồn hết vào 1 lệnh —
+      // chênh lệch giữa lệnh lớn nhất/nhỏ nhất trong kế hoạch tối đa chỉ còn 1 lô 100 cổ phiếu.
       var perOrderQty = Math.floor(remBal / totalCount / 100) * 100;
-      // REM BAL luôn là bội số 100 theo quy tắc chẵn lô (xem updateOrderAggregates) — nên lastOrderQty
-      // (nhận phần dư) cũng luôn là bội số 100; hàm này không tự làm tròn lại remBal.
-      var lastOrderQty = remBal - perOrderQty * (totalCount - 1);
+      var remainder = remBal - perOrderQty * totalCount;
+      var bumpCount = Math.floor(remainder / 100);
+      var bumpedQty = perOrderQty + 100;
+      var finalRemainder = remainder - bumpCount * 100; // an toàn nếu remBal lẻ bội số 100 (không đúng chẵn lô)
 
       var plan = [];
       if (hasAto) plan.push({ session: 'ato', timeMin: TWAP_ATO_START, qty: perOrderQty });
@@ -1345,12 +1349,13 @@
       }
       if (hasAtc) plan.push({ session: 'atc', timeMin: TWAP_ATC_TIME, qty: perOrderQty });
       plan.forEach(function (p, idx) { p.seq = idx + 1; });
-      plan[plan.length - 1].qty = lastOrderQty;
+      for (var b = 0; b < bumpCount; b++) plan[plan.length - 1 - b].qty = bumpedQty;
+      if (finalRemainder > 0) plan[plan.length - 1].qty += finalRemainder;
 
       return {
         ato: hasAto, atc: hasAtc, contCount: contCount, totalCount: totalCount,
-        interval: interval, effectiveInterval: effectiveInterval, adjusted: adjusted,
-        perOrderQty: perOrderQty, lastOrderQty: lastOrderQty, plan: plan
+        interval: interval, effectiveInterval: effectiveInterval,
+        perOrderQty: perOrderQty, bumpedQty: bumpedQty, bumpCount: bumpCount, plan: plan
       };
     }
 
@@ -1450,10 +1455,10 @@
       if (result.contCount > 0) parts.push(result.contCount + ' liên tục');
       if (result.atc) parts.push('1 ATC');
       countEl.textContent = parts.join(' + ') + ' = ' + result.totalCount + ' lệnh';
-      qtyEl.textContent = formatQty(result.perOrderQty) +
-        (result.lastOrderQty !== result.perOrderQty ? ' (lệnh cuối: ' + formatQty(result.lastOrderQty) + ')' : '');
-      intervalEl.textContent = result.effectiveInterval === null ? '—' :
-        (result.effectiveInterval + ' phút' + (result.adjusted ? ' (đã tự điều chỉnh)' : ''));
+      qtyEl.textContent = result.bumpCount > 0
+        ? formatQty(result.perOrderQty) + ' – ' + formatQty(result.bumpedQty)
+        : formatQty(result.perOrderQty);
+      intervalEl.textContent = result.effectiveInterval === null ? '—' : (result.effectiveInterval + ' phút');
     }
 
     function confirmAutoTwapSetup() {
@@ -1568,9 +1573,7 @@
       var cfg = autoTwapConfigs[twapTargetOrderId] || null;
       document.getElementById('twapview-start').textContent = cfg ? cfg.startTime : '—';
       document.getElementById('twapview-end').textContent = cfg ? cfg.endTime : '—';
-      document.getElementById('twapview-interval').textContent = cfg
-        ? (cfg.effectiveInterval + ' phút' + (cfg.effectiveInterval !== cfg.interval ? ' (đã tự điều chỉnh)' : ''))
-        : '—';
+      document.getElementById('twapview-interval').textContent = cfg ? (cfg.effectiveInterval + ' phút') : '—';
       document.getElementById('twapview-planned').textContent = (cfg ? cfg.plannedCount : 0) + ' lệnh';
       document.getElementById('twapview-generated').textContent = countAutoTwapGeneratedOrders(twapTargetOrderId) + ' lệnh';
 
