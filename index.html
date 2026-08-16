@@ -1292,34 +1292,80 @@
     // bị chèn lẫn vào số cũ. Tách 2 ô loại bỏ hẳn lớp lỗi này: mỗi ô chỉ chứa tối đa 2 chữ số, không có
     // dấu phân cách phải tự chèn.
     //
-    // Quy tắc: ô giờ chỉ nhận 00–24, ô phút chỉ nhận 00–59; mọi giá trị khác KHÔNG được nhận. Gõ đủ 2 chữ
-    // số ở ô giờ → tự chuyển con trỏ sang ô phút.
+    // Quy tắc: ô giờ chỉ nhận 00–24, ô phút chỉ nhận 00–59, tối đa 2 chữ số; mọi ký tự làm giá trị vượt ra
+    // ngoài khoảng đó đều KHÔNG được nhận. Gõ đủ 2 chữ số ở ô giờ → tự chuyển con trỏ sang ô phút.
     //
-    // Nguyên tắc cốt lõi: JS **không bao giờ tự ghi ký tự** vào ô — để trình duyệt tự thực hiện việc sửa
-    // đổi, JS chỉ TỪ CHỐI (preventDefault) những thay đổi tạo ra giá trị không hợp lệ. Các bản trước tự
-    // dựng lại chuỗi rồi gán vào .value, dẫn tới 2 lỗi: (1) sinh ra ký tự người dùng không hề gõ, (2) bỏ
-    // qua vùng đang bôi đen nên gõ đè lên phần đã chọn không thay thế được. Để trình duyệt tự xử lý thì
-    // việc thay thế vùng bôi đen, vị trí con trỏ, hoàn tác... đều hoạt động đúng như ô nhập thông thường.
+    // KHÔNG dựa vào vùng bôi đen (selectionStart/End) để biết "gõ là thay thế": khi click vào ô, Chrome
+    // thu gọn vùng chọn SAU khi handler focus/mouseup đã select(), nên tới lúc gõ thì vùng chọn đã sập về
+    // 1 điểm — ký tự mới bị chèn thêm thay vì thay thế. Thay vào đó dùng cờ `replaceNext`: bật khi vừa
+    // focus vào ô, tắt sau ký tự đầu tiên hoặc khi người dùng chủ động di chuyển con trỏ.
+    //
+    // Chặn 2 lớp để không đường nhập nào lọt:
+    //  1) 'keydown' — đường gõ tay thật, tự tính giá trị mới rồi gán (kiểm soát hoàn toàn, không phụ thuộc
+    //     vùng chọn). Ký tự làm sai quy tắc bị bỏ qua hẳn.
+    //  2) 'input' — lưới an toàn cho các đường KHÔNG qua keydown (dán, bộ gõ tiếng Việt/IME, tự động điền,
+    //     trình duyệt chèn cả cụm): nếu giá trị sau thay đổi không hợp lệ thì khôi phục giá trị hợp lệ cuối.
     function setupTwapTimePart(el, maxValue, nextEl) {
-      el.addEventListener('focus', function () { el.select(); });
-      // Click lần đầu khiến trình duyệt đặt lại con trỏ SAU khi focus đã select() — chọn lại để gõ là thay thế
+      var lastGood = el.value;
+      var replaceNext = false;
+
+      function isValid(v) { return /^\d{0,2}$/.test(v) && (v === '' || parseInt(v, 10) <= maxValue); }
+
+      function commit(v) {
+        el.value = v;
+        lastGood = v;
+        el.setSelectionRange(v.length, v.length);
+        onAutoTwapInputsChanged(); // gán .value bằng JS không tự phát sinh 'input' nên phải gọi tay
+        if (nextEl && v.length === 2) { nextEl.focus(); nextEl.select(); }
+      }
+
+      el.addEventListener('focus', function () {
+        lastGood = el.value;
+        replaceNext = true; // ký tự đầu tiên gõ sau khi focus luôn thay thế toàn bộ giá trị cũ
+        el.select();
+      });
       el.addEventListener('mouseup', function () {
         if (el.selectionStart === el.selectionEnd) el.select();
       });
-      el.addEventListener('beforeinput', function (e) {
-        if (e.inputType.indexOf('delete') === 0) return; // luôn cho phép xoá
-        var incoming = e.data != null ? e.data : (e.dataTransfer ? e.dataTransfer.getData('text') : '');
-        // Giá trị ô SẼ thành gì nếu cho phép thay đổi này (có tính vùng đang bôi đen sẽ bị thay thế)
-        var next = el.value.slice(0, el.selectionStart) + incoming + el.value.slice(el.selectionEnd);
-        if (!/^\d{0,2}$/.test(next) || (next && parseInt(next, 10) > maxValue)) e.preventDefault();
+
+      el.addEventListener('keydown', function (e) {
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.key >= '0' && e.key <= '9') {
+          e.preventDefault();
+          var selLen = el.selectionEnd - el.selectionStart;
+          var candidate;
+          if (replaceNext || selLen === el.value.length) {
+            candidate = e.key; // thay thế toàn bộ
+          } else if (selLen > 0) {
+            candidate = el.value.slice(0, el.selectionStart) + e.key + el.value.slice(el.selectionEnd);
+          } else {
+            candidate = el.value + e.key;
+          }
+          replaceNext = false;
+          if (isValid(candidate)) commit(candidate); // không hợp lệ → bỏ qua hẳn phím vừa gõ
+        } else if (e.key.length === 1) {
+          e.preventDefault(); // chặn mọi ký tự không phải số
+          replaceNext = false;
+        } else {
+          replaceNext = false; // Backspace/Delete/mũi tên/Home/End... → chuyển sang sửa tại chỗ
+        }
       });
+
       el.addEventListener('input', function () {
-        onAutoTwapInputsChanged();
-        if (nextEl && el.value.length === 2) { nextEl.focus(); nextEl.select(); }
+        if (isValid(el.value)) {
+          lastGood = el.value;
+          onAutoTwapInputsChanged();
+        } else {
+          el.value = lastGood; // giá trị lọt qua keydown nhưng không hợp lệ → trả lại giá trị hợp lệ cuối
+          el.setSelectionRange(lastGood.length, lastGood.length);
+        }
       });
+
       el.addEventListener('blur', function () {
+        replaceNext = false;
         if (!el.value) return;
-        el.value = el.value.padStart(2, '0'); // "9" → "09"; giá trị đã được chặn trong khoảng hợp lệ khi nhập
+        el.value = el.value.padStart(2, '0'); // "9" → "09"; phạm vi đã được chặn ngay lúc nhập
+        lastGood = el.value;
         onAutoTwapInputsChanged();
       });
     }
