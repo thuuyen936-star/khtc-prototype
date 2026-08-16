@@ -478,9 +478,12 @@ phần dư             = REM BAL − KL mỗi lệnh × totalCount
 số lệnh nhận thêm   = floor(phần dư / 100)
 KL lệnh nhận thêm   = KL mỗi lệnh + 100
 
-// Rải "số lệnh nhận thêm" lô 100 cho các lệnh CUỐI CÙNG (theo thời gian) thay vì dồn hết phần dư vào
-// đúng 1 lệnh cuối — chênh lệch giữa lệnh lớn nhất/nhỏ nhất trong kế hoạch tối đa chỉ còn 1 lô 100 cổ
-// phiếu (trước đây có thể lệch tới hàng chục lần khi REM BAL lớn/tần suất dày).
+// Rải "số lệnh nhận thêm" lô 100 ĐỀU theo thời gian trong các lệnh liên tục (không dồn cụm ở cuối phiên):
+// nếu có ATC, ATC luôn nhận đúng 1 lô (ATC luôn là lệnh cuối cùng trong ngày); phần dư còn lại rải đều
+// trong N lệnh liên tục bằng thuật toán phân bố đều kinh điển — lệnh liên tục thứ i (0-indexed) nhận lô
+// dư nếu floor((i+1)×K/N) > floor(i×K/N), với K = số lô dư cần rải trong phiên liên tục. ATO không tham
+// gia rải — luôn nhận đúng KL cơ bản. Chênh lệch giữa lệnh lớn nhất/nhỏ nhất trong kế hoạch tối đa chỉ
+// còn 1 lô 100 cổ phiếu (trước đây có thể lệch tới hàng chục lần khi REM BAL lớn/tần suất dày).
 ```
 
 > **Bắt buộc:** KL mỗi lệnh TWAP phải là **bội số của 100** (lô chẵn), kể cả lệnh ATO/ATC.

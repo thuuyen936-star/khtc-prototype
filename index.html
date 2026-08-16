@@ -1341,6 +1341,7 @@
 
       var plan = [];
       if (hasAto) plan.push({ session: 'ato', timeMin: TWAP_ATO_START, qty: perOrderQty });
+      var contStartIdx = plan.length;
       var t = clampedStart;
       for (var i = 0; i < contCount; i++) {
         if (t >= TWAP_LUNCH_START && t < TWAP_LUNCH_END) t = TWAP_LUNCH_END;
@@ -1349,7 +1350,20 @@
       }
       if (hasAtc) plan.push({ session: 'atc', timeMin: TWAP_ATC_TIME, qty: perOrderQty });
       plan.forEach(function (p, idx) { p.seq = idx + 1; });
-      for (var b = 0; b < bumpCount; b++) plan[plan.length - 1 - b].qty = bumpedQty;
+
+      // Rải bumpCount lô 100 dư: nếu có ATC, ATC luôn nhận đúng 1 lô (ATC luôn là lệnh cuối cùng trong
+      // ngày). Phần dư còn lại rải ĐỀU theo thời gian trong các lệnh liên tục — dùng thuật toán phân bố
+      // đều kinh điển (floor((i+1)*K/N) > floor(i*K/N)) để trải rộng theo suốt khung giờ hiệu lực, thay
+      // vì dồn cụm ở cuối phiên như trước. ATO không tham gia rải — luôn nhận đúng KL cơ bản.
+      if (hasAtc && bumpCount > 0) plan[plan.length - 1].qty = bumpedQty;
+      var contBumpCount = bumpCount - (hasAtc && bumpCount > 0 ? 1 : 0);
+      if (contBumpCount > 0) {
+        for (var ci = 0; ci < contCount; ci++) {
+          if (Math.floor((ci + 1) * contBumpCount / contCount) > Math.floor(ci * contBumpCount / contCount)) {
+            plan[contStartIdx + ci].qty = bumpedQty;
+          }
+        }
+      }
       if (finalRemainder > 0) plan[plan.length - 1].qty += finalRemainder;
 
       return {
