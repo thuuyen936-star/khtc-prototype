@@ -371,7 +371,8 @@ Bấm `Huỷ từ Fix Net` → popup "**Hủy lệnh từ FixNet**" (tiêu đề
 **Validate:**
 - KL đặt ≤ `Qty` của lệnh tổng
 - KL đặt ≤ `REM BAL`
-- Giá lệnh con: **Mua ≤ LmtPx**, **Bán ≥ LmtPx** *(khuyến nghị bổ sung — prototype chưa chặn)*
+- **Khi lệnh tổng có `Chk Px = 1`**: giá lệnh con không được vượt LmtPx — **Mua ≤ LmtPx**, **Bán ≥ LmtPx**.
+  Với `Chk Px` khác `1` (`2`, `3`, hoặc chưa có) thì không áp dụng ràng buộc này.
 
 **Popup xác nhận** hiển thị: Mã CK, Mua/Bán, KL, Giá đặt, Giá trị, **Giá TB dự kiến** (bình quân gia quyền các lệnh con còn hiệu lực + lệnh đang đặt).
 
@@ -380,6 +381,9 @@ Bấm `Huỷ từ Fix Net` → popup "**Hủy lệnh từ FixNet**" (tiêu đề
 ### 5.2. Sửa lệnh con
 
 Bấm `Sửa` trên dòng lệnh con → khung chuyển chế độ sửa (Giá/KL fill sẵn giá trị gốc, các trường khác khóa) → nút `Sửa lệnh Mua/Bán` chỉ enable khi có thay đổi → popup xác nhận hiện **Giá/KL trước–sau**.
+
+Áp dụng **cùng ràng buộc giá** như Đặt lệnh con (5.1): nếu lệnh tổng có `Chk Px = 1`, giá sửa không được
+vượt LmtPx (Mua ≤ LmtPx, Bán ≥ LmtPx) — vi phạm thì nút `Sửa lệnh Mua/Bán` vẫn khóa dù Giá/KL đã đổi.
 
 **Cơ chế sửa = hủy + đặt mới:**
 - Dòng gốc → trạng thái **`Đã sửa`** (badge tím)

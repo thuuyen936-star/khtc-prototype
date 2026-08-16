@@ -2347,9 +2347,21 @@
         var editPrice = document.getElementById('ord-price').value.trim();
         var editQty = document.getElementById('ord-qty').value.trim();
         var editValid = !!(editPrice && editQty && parseQty(editQty) > 0);
+        var editParentTr = document.getElementById('row-' + editingChildRow.dataset.parentId);
         if (editValid) {
-          var editParentTr = document.getElementById('row-' + editingChildRow.dataset.parentId);
           if (editParentTr && parseQty(editQty) > parseQty(editParentTr.dataset.qty)) editValid = false;
+          // Chk Px = 1: giá lệnh con không được vượt LmtPx (Mua: ≤ LmtPx; Bán: ≥ LmtPx) — cùng quy tắc
+          // đang áp dụng cho luồng Đặt lệnh con mới (xem nhánh bên dưới), giờ áp dụng luôn cho Sửa giá.
+          if (editValid && editParentTr && editPrice) {
+            var editChkPxCell = editParentTr.querySelector('.col-checkpx');
+            if (editChkPxCell && editChkPxCell.textContent.trim() === '1') {
+              var editLmtPx = parseQty(editParentTr.dataset.price);
+              var editChildPrice = parsePrice(editPrice);
+              var editSide = document.getElementById('side-toggle').dataset.side;
+              if (editSide === 'Mua' && editChildPrice > editLmtPx) editValid = false;
+              if (editSide === 'Bán' && editChildPrice < editLmtPx) editValid = false;
+            }
+          }
         }
         var changed = !!editingChildOriginal && (editPrice !== editingChildOriginal.price || editQty !== editingChildOriginal.qty);
         btn.disabled = !editValid || !changed;
