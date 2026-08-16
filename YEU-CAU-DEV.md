@@ -437,10 +437,11 @@ Tần suất hiệu lực   15 phút
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
 - **Thời gian kết thúc**, **Tần suất đẩy lệnh (nhỏ nhất)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
 - **Ô giờ luôn hiển thị định dạng 24h**, tách thành **2 ô nhập riêng biệt** — ô **giờ** và ô **phút**, mỗi ô nhận **đúng 2 ký tự số**, ngăn cách bằng dấu `:` cố định. Không dùng `<input type="time">` gốc của trình duyệt vì định dạng 12h/24h của nó phụ thuộc locale hệ điều hành, không kiểm soát được bằng HTML/CSS/JS thuần; cũng không dùng 1 ô gộp `HH:MM` vì việc tự chèn dấu `:` kết hợp với vị trí con trỏ khiến ký tự mới bị chèn lẫn vào giá trị cũ khi gõ đè.
-  - Gõ đủ **2 chữ số ở ô giờ → tự chuyển con trỏ sang ô phút**; ô phút đủ 2 chữ số thì **không nhận thêm** ký tự.
-  - Ký tự đầu tiên gõ sau khi focus vào ô luôn **thay thế** giá trị cũ (2 ô luôn được điền sẵn giờ hiện tại hoặc cấu hình cũ khi Sửa).
-  - Chỉ nhận ký tự số; khi rời ô, giá trị ngoài phạm vi hợp lệ tự chặn về **00–23** (giờ) / **00–59** (phút) và tự đệm `0` cho đủ 2 chữ số.
-  - Dán/gõ nhanh cả cụm 4 số vào ô giờ (VD `1445`) → 2 số đầu vào ô giờ, 2 số dư tự chuyển sang ô phút.
+  - **Ô giờ chỉ nhận giá trị 00–24, ô phút chỉ nhận 00–59. Mọi ký tự làm giá trị vượt ra ngoài khoảng này đều KHÔNG được nhận** (bị chặn ngay lúc gõ, ô giữ nguyên giá trị cũ) — VD ở ô giờ đã có `2`, gõ tiếp `5` (thành `25`) thì phím `5` bị bỏ qua; gõ `4` (thành `24`) thì được nhận. Ký tự không phải số cũng bị chặn.
+  - Gõ đủ **2 chữ số ở ô giờ → tự chuyển con trỏ sang ô phút** (và bôi đen sẵn để gõ tiếp là thay thế). Ô đã đủ 2 chữ số thì không nhận thêm ký tự.
+  - Khi focus vào ô, **toàn bộ giá trị cũ được bôi đen** để gõ là thay thế (2 ô luôn được điền sẵn giờ hiện tại hoặc cấu hình cũ khi Sửa). Gõ đè lên phần đang bôi đen hoạt động đúng như ô nhập thông thường.
+  - Khi rời ô, giá trị 1 chữ số tự đệm `0` cho đủ 2 chữ số (`9` → `09`).
+  - **Hệ thống không bao giờ tự điền thêm ký tự người dùng không gõ.** Về mặt kỹ thuật: JS chỉ *từ chối* các thay đổi tạo ra giá trị không hợp lệ, không tự dựng lại và ghi đè nội dung ô — nhờ đó việc thay thế vùng bôi đen, vị trí con trỏ và hoàn tác đều giữ đúng hành vi gốc của trình duyệt.
 - Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
 - "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư.
 - **Dòng "✔ Đã xác thực"** đặt ngay trên hàng nút, giống chuẩn màn xác nhận (§3.1/§8.2). Màn này dùng

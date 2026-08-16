@@ -1292,56 +1292,45 @@
     // bị chèn lẫn vào số cũ. Tách 2 ô loại bỏ hẳn lớp lỗi này: mỗi ô chỉ chứa tối đa 2 chữ số, không có
     // dấu phân cách phải tự chèn.
     //
-    // Quy tắc: gõ đủ 2 chữ số ở ô giờ → tự nhảy sang ô phút; ô phút đủ 2 chữ số thì không nhận thêm.
-    // Ký tự đầu tiên gõ sau khi focus luôn THAY THẾ giá trị cũ (ô luôn điền sẵn giờ hiện tại/cấu hình cũ).
-    // Xử lý ở 'beforeinput' vì đây là sự kiện duy nhất bắt được MỌI cách chèn/xóa ký tự (gõ từng phím,
-    // gõ nhanh cả cụm, dán, tự động điền) — 'keydown' bỏ sót khi trình duyệt chèn cả cụm cùng lúc.
+    // Quy tắc: ô giờ chỉ nhận 00–24, ô phút chỉ nhận 00–59; mọi giá trị khác KHÔNG được nhận. Gõ đủ 2 chữ
+    // số ở ô giờ → tự chuyển con trỏ sang ô phút.
+    //
+    // Nguyên tắc cốt lõi: JS **không bao giờ tự ghi ký tự** vào ô — để trình duyệt tự thực hiện việc sửa
+    // đổi, JS chỉ TỪ CHỐI (preventDefault) những thay đổi tạo ra giá trị không hợp lệ. Các bản trước tự
+    // dựng lại chuỗi rồi gán vào .value, dẫn tới 2 lỗi: (1) sinh ra ký tự người dùng không hề gõ, (2) bỏ
+    // qua vùng đang bôi đen nên gõ đè lên phần đã chọn không thay thế được. Để trình duyệt tự xử lý thì
+    // việc thay thế vùng bôi đen, vị trí con trỏ, hoàn tác... đều hoạt động đúng như ô nhập thông thường.
     function setupTwapTimePart(el, maxValue, nextEl) {
-      var freshFocus = false;
-      el.addEventListener('focus', function () { freshFocus = true; el.select(); });
-      el.addEventListener('blur', function () {
-        freshFocus = false;
-        if (!el.value) return;
-        var n = Math.min(maxValue, parseInt(el.value, 10) || 0);
-        el.value = String(n).padStart(2, '0');
-        onAutoTwapInputsChanged();
-      });
-      el.addEventListener('keydown', function (e) {
-        if (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End' || e.key === 'Tab') freshFocus = false;
+      el.addEventListener('focus', function () { el.select(); });
+      // Click lần đầu khiến trình duyệt đặt lại con trỏ SAU khi focus đã select() — chọn lại để gõ là thay thế
+      el.addEventListener('mouseup', function () {
+        if (el.selectionStart === el.selectionEnd) el.select();
       });
       el.addEventListener('beforeinput', function (e) {
-        var isDelete = e.inputType === 'deleteContentBackward' || e.inputType === 'deleteContentForward';
-        var incoming = e.data ? e.data.replace(/[^0-9]/g, '') : '';
-        if (!isDelete && !incoming) { e.preventDefault(); return; } // chặn mọi ký tự không phải số
-        e.preventDefault();
-        var all = isDelete ? el.value.slice(0, -1) : (freshFocus ? incoming : el.value + incoming);
-        var digits = all.slice(0, 2); // đủ 2 số thì ô này không nhận thêm
-        freshFocus = false;
-        el.value = digits;
-        el.setSelectionRange(digits.length, digits.length);
-        onAutoTwapInputsChanged(); // preventDefault chặn luôn 'input' tự nhiên nên phải tự gọi lại
-        if (isDelete || digits.length < 2 || !nextEl) return;
-        // Gõ/dán cả cụm (VD "1445") có thể vào ô giờ trong 1 sự kiện duy nhất — chuyển phần dư sang ô phút
-        // thay vì để rơi mất, rồi mới chuyển con trỏ sang đó.
-        nextEl.focus();
-        var overflow = all.slice(2, 4);
-        if (overflow) {
-          nextEl.value = overflow;
-          nextEl.setSelectionRange(overflow.length, overflow.length);
-          onAutoTwapInputsChanged();
-        } else {
-          nextEl.select();
-        }
+        if (e.inputType.indexOf('delete') === 0) return; // luôn cho phép xoá
+        var incoming = e.data != null ? e.data : (e.dataTransfer ? e.dataTransfer.getData('text') : '');
+        // Giá trị ô SẼ thành gì nếu cho phép thay đổi này (có tính vùng đang bôi đen sẽ bị thay thế)
+        var next = el.value.slice(0, el.selectionStart) + incoming + el.value.slice(el.selectionEnd);
+        if (!/^\d{0,2}$/.test(next) || (next && parseInt(next, 10) > maxValue)) e.preventDefault();
+      });
+      el.addEventListener('input', function () {
+        onAutoTwapInputsChanged();
+        if (nextEl && el.value.length === 2) { nextEl.focus(); nextEl.select(); }
+      });
+      el.addEventListener('blur', function () {
+        if (!el.value) return;
+        el.value = el.value.padStart(2, '0'); // "9" → "09"; giá trị đã được chặn trong khoảng hợp lệ khi nhập
+        onAutoTwapInputsChanged();
       });
     }
 
     // Ghép 2 ô giờ/phút thành chuỗi "HH:MM" — trả về '' nếu chưa nhập đủ cả 2 ô (kế hoạch chưa tính được).
+    // Không cần chặn phạm vi ở đây: giá trị ngoài khoảng hợp lệ đã bị từ chối ngay lúc nhập.
     function getTwapTime(prefix) {
       var hh = document.getElementById(prefix + '-hh').value;
       var mm = document.getElementById(prefix + '-mm').value;
       if (!hh || !mm) return '';
-      return String(Math.min(23, parseInt(hh, 10) || 0)).padStart(2, '0') + ':' +
-             String(Math.min(59, parseInt(mm, 10) || 0)).padStart(2, '0');
+      return hh.padStart(2, '0') + ':' + mm.padStart(2, '0');
     }
 
     // Điền "HH:MM" (hoặc '' để xoá trắng) vào cặp ô giờ/phút
@@ -2169,7 +2158,7 @@
     ['twap-start', 'twap-end'].forEach(function (prefix) {
       var hhEl = document.getElementById(prefix + '-hh');
       var mmEl = document.getElementById(prefix + '-mm');
-      setupTwapTimePart(hhEl, 23, mmEl);
+      setupTwapTimePart(hhEl, 24, mmEl);
       setupTwapTimePart(mmEl, 59, null);
     });
     enableThousandsFormatOnBlur('ord-price', formatPrice, parsePrice); // đơn vị nghìn (vd 24600 <-> "24.6")
