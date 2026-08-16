@@ -1302,25 +1302,34 @@
     //
     // Chặn 2 lớp để không đường nhập nào lọt:
     //  1) 'keydown' — đường gõ tay thật, tự tính giá trị mới rồi gán (kiểm soát hoàn toàn, không phụ thuộc
-    //     vùng chọn). Ký tự làm sai quy tắc bị bỏ qua hẳn.
-    //  2) 'input' — lưới an toàn cho các đường KHÔNG qua keydown (dán, bộ gõ tiếng Việt/IME, tự động điền,
-    //     trình duyệt chèn cả cụm): nếu giá trị sau thay đổi không hợp lệ thì khôi phục giá trị hợp lệ cuối.
+    //     vùng chọn). Ký tự làm sai quy tắc bị bỏ qua hẳn. BỎ QUA nhánh này khi bộ gõ tiếng Việt/IME đang
+    //     soạn (e.isComposing / e.key === 'Process'): lúc đó e.key không phải chữ số nên không thể xử lý ở
+    //     đây, phải để rơi xuống lớp 'input' bên dưới.
+    //  2) 'input' — lưới an toàn cho các đường KHÔNG qua keydown (bộ gõ tiếng Việt/IME, dán, tự động điền,
+    //     trình duyệt chèn cả cụm). Lớp này **làm sạch** giá trị hiện tại (bỏ ký tự không phải số, cắt còn
+    //     tối đa 2 chữ số, bỏ bớt chữ số cuối cho tới khi nằm trong khoảng hợp lệ) thay vì khôi phục về một
+    //     giá trị lưu sẵn — cách khôi phục cũ làm ô bị xoá trắng khi giá trị lưu sẵn đã lỗi thời.
     function setupTwapTimePart(el, maxValue, nextEl) {
-      var lastGood = el.value;
+      var prevValue = el.value; // giá trị trước thay đổi, chỉ dùng để tách phần vừa nhập ở lớp 'input'
       var replaceNext = false;
 
-      function isValid(v) { return /^\d{0,2}$/.test(v) && (v === '' || parseInt(v, 10) <= maxValue); }
+      // Làm sạch về giá trị hợp lệ gần nhất: chỉ số, tối đa 2 chữ số, không vượt maxValue
+      function sanitize(v) {
+        var d = (v || '').replace(/\D/g, '').slice(0, 2);
+        while (d && parseInt(d, 10) > maxValue) d = d.slice(0, -1);
+        return d;
+      }
 
-      function commit(v) {
+      function apply(v, fireInputChain) {
         el.value = v;
-        lastGood = v;
+        prevValue = v;
         el.setSelectionRange(v.length, v.length);
-        onAutoTwapInputsChanged(); // gán .value bằng JS không tự phát sinh 'input' nên phải gọi tay
-        if (nextEl && v.length === 2) { nextEl.focus(); nextEl.select(); }
+        onAutoTwapInputsChanged();
+        if (fireInputChain && nextEl && v.length === 2) { nextEl.focus(); nextEl.select(); }
       }
 
       el.addEventListener('focus', function () {
-        lastGood = el.value;
+        prevValue = el.value;
         replaceNext = true; // ký tự đầu tiên gõ sau khi focus luôn thay thế toàn bộ giá trị cũ
         el.select();
       });
@@ -1330,6 +1339,7 @@
 
       el.addEventListener('keydown', function (e) {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
+        if (e.isComposing || e.key === 'Process') return; // IME đang soạn → để lớp 'input' xử lý
         if (e.key >= '0' && e.key <= '9') {
           e.preventDefault();
           var selLen = el.selectionEnd - el.selectionStart;
@@ -1342,7 +1352,8 @@
             candidate = el.value + e.key;
           }
           replaceNext = false;
-          if (isValid(candidate)) commit(candidate); // không hợp lệ → bỏ qua hẳn phím vừa gõ
+          // Chỉ nhận nếu đúng quy tắc (tối đa 2 chữ số, không vượt maxValue) — sai thì bỏ qua hẳn phím vừa gõ
+          if (candidate.length <= 2 && parseInt(candidate, 10) <= maxValue) apply(candidate, true);
         } else if (e.key.length === 1) {
           e.preventDefault(); // chặn mọi ký tự không phải số
           replaceNext = false;
@@ -1352,20 +1363,26 @@
       });
 
       el.addEventListener('input', function () {
-        if (isValid(el.value)) {
-          lastGood = el.value;
-          onAutoTwapInputsChanged();
-        } else {
-          el.value = lastGood; // giá trị lọt qua keydown nhưng không hợp lệ → trả lại giá trị hợp lệ cuối
-          el.setSelectionRange(lastGood.length, lastGood.length);
+        var v = el.value;
+        // Thay đổi đi qua đường không phải keydown trong khi ô vẫn đang ở trạng thái "gõ là thay thế"
+        // (vùng bôi đen đã bị trình duyệt thu gọn nên giá trị cũ không bị thay) → tách lấy phần vừa nhập.
+        if (replaceNext && prevValue && v.length > prevValue.length) {
+          if (v.indexOf(prevValue) === 0) v = v.slice(prevValue.length);
+          else if (v.lastIndexOf(prevValue) === v.length - prevValue.length) v = v.slice(0, v.length - prevValue.length);
         }
+        replaceNext = false;
+        var clean = sanitize(v);
+        if (clean !== el.value) { el.value = clean; el.setSelectionRange(clean.length, clean.length); }
+        prevValue = clean;
+        onAutoTwapInputsChanged();
+        if (nextEl && clean.length === 2) { nextEl.focus(); nextEl.select(); }
       });
 
       el.addEventListener('blur', function () {
         replaceNext = false;
         if (!el.value) return;
         el.value = el.value.padStart(2, '0'); // "9" → "09"; phạm vi đã được chặn ngay lúc nhập
-        lastGood = el.value;
+        prevValue = el.value;
         onAutoTwapInputsChanged();
       });
     }
