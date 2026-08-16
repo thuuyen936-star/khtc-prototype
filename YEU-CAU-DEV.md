@@ -429,6 +429,7 @@ Số lệnh        1 ATO + 7 liên tục = 8 lệnh
 KL mỗi lệnh    200 – 300
 Tần suất hiệu lực   15 phút
 [thông báo lỗi]
+      ✔ Đã xác thực
         [Hủy]  [Xác nhận]
 ```
 
@@ -438,6 +439,9 @@ Tần suất hiệu lực   15 phút
 - **Ô giờ luôn hiển thị định dạng 24h (HH:MM)** — dùng ô nhập chữ tự build (không phải `<input type="time">` gốc của trình duyệt, vì định dạng 12h/24h của input đó phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần). Tự thêm dấu `:` khi gõ đủ 3 chữ số trở lên; khi rời khỏi ô, giờ/phút ngoài phạm vi hợp lệ tự chặn về 00–23 / 00–59.
 - Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
 - "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư.
+- **Dòng "✔ Đã xác thực"** đặt ngay trên hàng nút, giống chuẩn màn xác nhận (§3.1/§8.2). Màn này dùng
+  chung cho cả **Cài đặt mới** và **Sửa** (mục 7.1 mở lại đúng modal này với cấu hình cũ điền sẵn), nên
+  không cần lặp lại ở nơi khác.
 
 ### 6.3. Khung giờ phiên & công thức
 
