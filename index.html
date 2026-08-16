@@ -1287,6 +1287,40 @@
       el.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
     }
 
+    // Ô giờ Auto TWAP luôn điền sẵn giá trị (giờ hiện tại hoặc cấu hình cũ khi Sửa) — gõ đè cần thay thế
+    // đúng, không chèn vào giá trị cũ. Đã thử 2 cách KHÔNG đáng tin cậy trên Chrome thật trước khi chọn
+    // cách này:
+    //  1) select() khi focus (như ord-price/ord-qty) — trình duyệt có thể tự đặt lại con trỏ theo tọa độ
+    //     click SAU khi JS gọi select(), làm mất vùng chọn trước khi ký tự đầu tiên được gõ.
+    //  2) Chặn ở 'keydown' — không bắt được các cách trình duyệt/hệ điều hành chèn CẢ CỤM ký tự cùng lúc
+    //     (gõ nhanh, IME, tự động điền), vì các trường hợp đó không phát sinh keydown riêng từng ký tự.
+    // Cách chắc chắn nhất: chặn ở 'beforeinput' — sự kiện DUY NHẤT bắt được MỌI cách chèn/xóa ký tự
+    // (gõ từng phím, gõ nhanh, dán, tự động điền) kèm sẵn nội dung sắp chèn (e.data), rồi tự tính lại
+    // toàn bộ giá trị từ 1 bộ đệm 4 chữ số riêng — không phụ thuộc con trỏ/vùng chọn của trình duyệt.
+    function setupTwapTimeInput(el) {
+      var digits = '';
+      var freshFocus = false;
+      function syncDigitsFromValue() { digits = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
+      function applyDigits() {
+        el.value = digits.length >= 3 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
+        el.setSelectionRange(el.value.length, el.value.length);
+      }
+      el.addEventListener('focus', function () { syncDigitsFromValue(); freshFocus = true; });
+      el.addEventListener('keydown', function (e) {
+        if (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End' || e.key === 'Tab') freshFocus = false;
+      });
+      el.addEventListener('beforeinput', function (e) {
+        var isDelete = e.inputType === 'deleteContentBackward' || e.inputType === 'deleteContentForward';
+        var incoming = e.data ? e.data.replace(/[^0-9]/g, '') : '';
+        if (!isDelete && !incoming) return; // không phải chèn số/xóa ký tự — để trình duyệt tự xử lý bình thường
+        e.preventDefault();
+        digits = isDelete ? digits.slice(0, -1) : (freshFocus ? incoming.slice(0, 4) : (digits + incoming).slice(0, 4));
+        freshFocus = false;
+        applyDigits();
+        onAutoTwapInputsChanged(); // preventDefault chặn luôn 'input' tự nhiên nên phải tự gọi lại
+      });
+    }
+
     function minutesToTimeStr(min) {
       var h = Math.floor(min / 60), m = min % 60;
       return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
@@ -2100,11 +2134,8 @@
       });
     }
 
-    // twap-start-time/twap-end-time cũng cần "gõ số đầu tiên thay thế toàn bộ" như ord-price/ord-qty —
-    // 2 ô này luôn điền sẵn giá trị (giờ hiện tại hoặc cấu hình cũ khi Sửa), nếu không có cơ chế này thì
-    // gõ đè lên sẽ bị chèn thêm vào giá trị cũ thay vì thay thế (VD gõ "1123" trên "11:09" có sẵn ra
-    // "11:10" thay vì "11:23", vì maxlength=5 chặn bớt ký tự khi không chọn hết trước).
-    ['ord-price', 'ord-qty', 'twap-start-time', 'twap-end-time'].forEach(function (id) { enableSelectAllOnFocus(id); });
+    ['ord-price', 'ord-qty'].forEach(function (id) { enableSelectAllOnFocus(id); });
+    ['twap-start-time', 'twap-end-time'].forEach(function (id) { setupTwapTimeInput(document.getElementById(id)); });
     enableThousandsFormatOnBlur('ord-price', formatPrice, parsePrice); // đơn vị nghìn (vd 24600 <-> "24.6")
     enableThousandsFormatOnBlur('ord-qty', formatQty, parseQty);
 
