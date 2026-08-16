@@ -422,7 +422,7 @@ SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
            [BÁN]
 ── Cấu hình chia lệnh (REM BAL: 1,900) ──
 Thời gian bắt đầu      [09] : [00]
-Thời gian kết thúc     [11] : [00]
+Thời gian kết thúc     [14] : [45]   ← mặc định 14:45
 Tần suất đẩy lệnh (nhỏ nhất)  [15]
 ── Dự kiến ──────────────────────────
 Số lệnh        1 ATO + 7 liên tục = 8 lệnh
@@ -435,7 +435,8 @@ Tần suất hiệu lực   15 phút
 
 **Quy tắc nhập:**
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
-- **Thời gian kết thúc**, **Tần suất đẩy lệnh (nhỏ nhất)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
+- **Thời gian kết thúc**: mặc định = **14:45** (chạy tới hết phiên ATC), broker chủ động sửa lại nếu muốn kết thúc sớm hơn.
+- **Tần suất đẩy lệnh (nhỏ nhất)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
 - **Ô giờ luôn hiển thị định dạng 24h**, tách thành **2 ô nhập riêng biệt** — ô **giờ** và ô **phút**, mỗi ô nhận **đúng 2 ký tự số**, ngăn cách bằng dấu `:` cố định. Không dùng `<input type="time">` gốc của trình duyệt vì định dạng 12h/24h của nó phụ thuộc locale hệ điều hành, không kiểm soát được bằng HTML/CSS/JS thuần; cũng không dùng 1 ô gộp `HH:MM` vì việc tự chèn dấu `:` kết hợp với vị trí con trỏ khiến ký tự mới bị chèn lẫn vào giá trị cũ khi gõ đè.
   - **Ô giờ chỉ nhận giá trị 00–24, ô phút chỉ nhận 00–59. Mọi ký tự làm giá trị vượt ra ngoài khoảng này đều KHÔNG được nhận** (bị chặn ngay lúc gõ, ô giữ nguyên giá trị cũ) — VD ở ô giờ đã có `2`, gõ tiếp `5` (thành `25`) thì phím `5` bị bỏ qua; gõ `4` (thành `24`) thì được nhận. Ký tự không phải số cũng bị chặn.
   - Gõ đủ **2 chữ số ở ô giờ → tự chuyển con trỏ sang ô phút** (và bôi đen sẵn để gõ tiếp là thay thế). Ô đã đủ 2 chữ số thì không nhận thêm ký tự.

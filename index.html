@@ -1536,7 +1536,8 @@
       var now = new Date();
       var defaultStart = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
       setTwapTime('twap-start', existingConfig ? existingConfig.startTime : defaultStart);
-      setTwapTime('twap-end', existingConfig ? existingConfig.endTime : '');
+      // Mặc định chạy tới hết phiên ATC (14:45) — broker chủ động sửa lại nếu muốn kết thúc sớm hơn
+      setTwapTime('twap-end', existingConfig ? existingConfig.endTime : '14:45');
       document.getElementById('twap-interval').value = existingConfig ? existingConfig.interval : '';
       document.getElementById('twap-error').textContent = '';
       onAutoTwapInputsChanged();
