@@ -419,7 +419,7 @@ SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
 ── Cấu hình chia lệnh (REM BAL: 1,900) ──
 Thời gian bắt đầu      [09:00]
 Thời gian kết thúc     [11:00]
-Tần suất tối thiểu (phút)  [15]
+Tần suất đẩy lệnh (nhỏ nhất)  [15]
 ── Dự kiến ──────────────────────────
 Số lệnh        1 ATO + 7 liên tục = 8 lệnh
 KL mỗi lệnh    200 – 300
@@ -430,7 +430,7 @@ Tần suất hiệu lực   15 phút
 
 **Quy tắc nhập:**
 - **Thời gian bắt đầu**: mặc định = giờ hiện tại, cho phép sửa.
-- **Thời gian kết thúc**, **Tần suất tối thiểu (phút)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
+- **Thời gian kết thúc**, **Tần suất đẩy lệnh (nhỏ nhất)**: broker tự nhập. Tần suất chỉ là **ngưỡng tối thiểu** giữa 2 lần đẩy lệnh liên tục — hệ thống tự chọn số lần đẩy lệnh và tự dàn đều thời gian trong khung giờ khả dụng (xem 6.3), nên **tần suất hiệu lực thực tế thường khác** (luôn ≥ giá trị đã nhập), đây là hành vi bình thường chứ không phải ngoại lệ.
 - **Ô giờ luôn hiển thị định dạng 24h (HH:MM)** — dùng ô nhập chữ tự build (không phải `<input type="time">` gốc của trình duyệt, vì định dạng 12h/24h của input đó phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần). Tự thêm dấu `:` khi gõ đủ 3 chữ số trở lên; khi rời khỏi ô, giờ/phút ngoài phạm vi hợp lệ tự chặn về 00–23 / 00–59.
 - Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
 - "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư.
