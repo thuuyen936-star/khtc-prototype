@@ -2100,7 +2100,11 @@
       });
     }
 
-    ['ord-price', 'ord-qty'].forEach(function (id) { enableSelectAllOnFocus(id); });
+    // twap-start-time/twap-end-time cũng cần "gõ số đầu tiên thay thế toàn bộ" như ord-price/ord-qty —
+    // 2 ô này luôn điền sẵn giá trị (giờ hiện tại hoặc cấu hình cũ khi Sửa), nếu không có cơ chế này thì
+    // gõ đè lên sẽ bị chèn thêm vào giá trị cũ thay vì thay thế (VD gõ "1123" trên "11:09" có sẵn ra
+    // "11:10" thay vì "11:23", vì maxlength=5 chặn bớt ký tự khi không chọn hết trước).
+    ['ord-price', 'ord-qty', 'twap-start-time', 'twap-end-time'].forEach(function (id) { enableSelectAllOnFocus(id); });
     enableThousandsFormatOnBlur('ord-price', formatPrice, parsePrice); // đơn vị nghìn (vd 24600 <-> "24.6")
     enableThousandsFormatOnBlur('ord-qty', formatQty, parseQty);
 
