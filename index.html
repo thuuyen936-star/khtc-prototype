@@ -392,9 +392,13 @@
 
   /* ===== Modal: Cài đặt Auto TWAP ===== */
   .twap-section-title { font-weight:700; color:var(--text-title); font-size:var(--fs-small); margin:14px 0 8px; }
-  .modal-kv-row .twap-time-input, .modal-kv-row input[type="number"] {
+  .modal-kv-row .twap-time-part, .modal-kv-row input[type="number"] {
     background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-btn);
     padding:2px 10px; color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); width:120px; text-align:right; }
+  /* Giờ và phút là 2 ô nhập RIÊNG (mỗi ô đúng 2 ký tự) — gộp lại chiếm đúng bề ngang 120px như ô số */
+  .twap-time-pair { display:inline-flex; align-items:center; justify-content:flex-end; gap:4px; width:120px; }
+  .modal-kv-row .twap-time-pair .twap-time-part { width:46px; text-align:center; padding:2px 4px; }
+  .twap-time-sep { color:var(--text-title); font-size:var(--fs-small); font-family:var(--font-ui); }
 
   /* ===== Modal: Detail (4) ===== */
   .detail-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:12px 18px;
@@ -1046,8 +1050,20 @@
 
       <div class="twap-section-title">Cấu hình chia lệnh <span style="color:var(--text-dim);font-weight:400;">(REM BAL: <span id="twap-rembal"></span>)</span></div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Thời gian bắt đầu</label><input type="text" class="twap-time-input" id="twap-start-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
-        <div class="modal-kv-row"><label>Thời gian kết thúc</label><input type="text" class="twap-time-input" id="twap-end-time" placeholder="HH:MM" maxlength="5" inputmode="numeric" oninput="formatTimeInput(this); onAutoTwapInputsChanged();" onblur="clampTimeInput(this); onAutoTwapInputsChanged();"></div>
+        <div class="modal-kv-row"><label>Thời gian bắt đầu</label>
+          <span class="twap-time-pair">
+            <input type="text" class="twap-time-part" id="twap-start-hh" placeholder="HH" maxlength="2" inputmode="numeric">
+            <span class="twap-time-sep">:</span>
+            <input type="text" class="twap-time-part" id="twap-start-mm" placeholder="MM" maxlength="2" inputmode="numeric">
+          </span>
+        </div>
+        <div class="modal-kv-row"><label>Thời gian kết thúc</label>
+          <span class="twap-time-pair">
+            <input type="text" class="twap-time-part" id="twap-end-hh" placeholder="HH" maxlength="2" inputmode="numeric">
+            <span class="twap-time-sep">:</span>
+            <input type="text" class="twap-time-part" id="twap-end-mm" placeholder="MM" maxlength="2" inputmode="numeric">
+          </span>
+        </div>
         <div class="modal-kv-row"><label>Tần suất đẩy lệnh (nhỏ nhất)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
       </div>
 
@@ -1269,56 +1285,70 @@
       return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
     }
 
-    // Ô nhập giờ dạng text HH:MM (24h) — thay cho <input type="time"> vì định dạng 12h/24h của input
-    // native phụ thuộc locale hệ điều hành/trình duyệt, không kiểm soát được bằng HTML/CSS/JS thuần.
-    // Tự thêm dấu ":" khi gõ đủ 3 chữ số trở lên.
-    function formatTimeInput(el) {
-      var digits = el.value.replace(/[^0-9]/g, '').slice(0, 4);
-      el.value = digits.length >= 3 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
-    }
-
-    // Chặn giờ/phút ngoài phạm vi hợp lệ (00-23 / 00-59) khi rời khỏi ô — chạy sau formatTimeInput.
-    function clampTimeInput(el) {
-      if (!el.value) return;
-      var m = el.value.match(/^(\d{1,2}):?(\d{0,2})$/);
-      if (!m) { el.value = ''; return; }
-      var hh = Math.min(23, parseInt(m[1], 10) || 0);
-      var mm = m[2] ? Math.min(59, parseInt(m[2], 10) || 0) : 0;
-      el.value = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
-    }
-
-    // Ô giờ Auto TWAP luôn điền sẵn giá trị (giờ hiện tại hoặc cấu hình cũ khi Sửa) — gõ đè cần thay thế
-    // đúng, không chèn vào giá trị cũ. Đã thử 2 cách KHÔNG đáng tin cậy trên Chrome thật trước khi chọn
-    // cách này:
-    //  1) select() khi focus (như ord-price/ord-qty) — trình duyệt có thể tự đặt lại con trỏ theo tọa độ
-    //     click SAU khi JS gọi select(), làm mất vùng chọn trước khi ký tự đầu tiên được gõ.
-    //  2) Chặn ở 'keydown' — không bắt được các cách trình duyệt/hệ điều hành chèn CẢ CỤM ký tự cùng lúc
-    //     (gõ nhanh, IME, tự động điền), vì các trường hợp đó không phát sinh keydown riêng từng ký tự.
-    // Cách chắc chắn nhất: chặn ở 'beforeinput' — sự kiện DUY NHẤT bắt được MỌI cách chèn/xóa ký tự
-    // (gõ từng phím, gõ nhanh, dán, tự động điền) kèm sẵn nội dung sắp chèn (e.data), rồi tự tính lại
-    // toàn bộ giá trị từ 1 bộ đệm 4 chữ số riêng — không phụ thuộc con trỏ/vùng chọn của trình duyệt.
-    function setupTwapTimeInput(el) {
-      var digits = '';
+    // Giờ nhập theo 24h được tách thành 2 ô RIÊNG (giờ / phút), mỗi ô đúng 2 ký tự — thay cho 1 ô "HH:MM"
+    // gộp và thay cho <input type="time"> (định dạng 12h/24h của input native phụ thuộc locale hệ điều
+    // hành, không kiểm soát được bằng HTML/CSS/JS thuần). Ô gộp trước đây liên tục sai khi gõ đè lên giá
+    // trị điền sẵn: vị trí con trỏ, dấu ":" tự chèn và maxlength cùng tác động vào 1 chuỗi nên ký tự mới
+    // bị chèn lẫn vào số cũ. Tách 2 ô loại bỏ hẳn lớp lỗi này: mỗi ô chỉ chứa tối đa 2 chữ số, không có
+    // dấu phân cách phải tự chèn.
+    //
+    // Quy tắc: gõ đủ 2 chữ số ở ô giờ → tự nhảy sang ô phút; ô phút đủ 2 chữ số thì không nhận thêm.
+    // Ký tự đầu tiên gõ sau khi focus luôn THAY THẾ giá trị cũ (ô luôn điền sẵn giờ hiện tại/cấu hình cũ).
+    // Xử lý ở 'beforeinput' vì đây là sự kiện duy nhất bắt được MỌI cách chèn/xóa ký tự (gõ từng phím,
+    // gõ nhanh cả cụm, dán, tự động điền) — 'keydown' bỏ sót khi trình duyệt chèn cả cụm cùng lúc.
+    function setupTwapTimePart(el, maxValue, nextEl) {
       var freshFocus = false;
-      function syncDigitsFromValue() { digits = el.value.replace(/[^0-9]/g, '').slice(0, 4); }
-      function applyDigits() {
-        el.value = digits.length >= 3 ? digits.slice(0, 2) + ':' + digits.slice(2) : digits;
-        el.setSelectionRange(el.value.length, el.value.length);
-      }
-      el.addEventListener('focus', function () { syncDigitsFromValue(); freshFocus = true; });
+      el.addEventListener('focus', function () { freshFocus = true; el.select(); });
+      el.addEventListener('blur', function () {
+        freshFocus = false;
+        if (!el.value) return;
+        var n = Math.min(maxValue, parseInt(el.value, 10) || 0);
+        el.value = String(n).padStart(2, '0');
+        onAutoTwapInputsChanged();
+      });
       el.addEventListener('keydown', function (e) {
         if (e.key.indexOf('Arrow') === 0 || e.key === 'Home' || e.key === 'End' || e.key === 'Tab') freshFocus = false;
       });
       el.addEventListener('beforeinput', function (e) {
         var isDelete = e.inputType === 'deleteContentBackward' || e.inputType === 'deleteContentForward';
         var incoming = e.data ? e.data.replace(/[^0-9]/g, '') : '';
-        if (!isDelete && !incoming) return; // không phải chèn số/xóa ký tự — để trình duyệt tự xử lý bình thường
+        if (!isDelete && !incoming) { e.preventDefault(); return; } // chặn mọi ký tự không phải số
         e.preventDefault();
-        digits = isDelete ? digits.slice(0, -1) : (freshFocus ? incoming.slice(0, 4) : (digits + incoming).slice(0, 4));
+        var all = isDelete ? el.value.slice(0, -1) : (freshFocus ? incoming : el.value + incoming);
+        var digits = all.slice(0, 2); // đủ 2 số thì ô này không nhận thêm
         freshFocus = false;
-        applyDigits();
+        el.value = digits;
+        el.setSelectionRange(digits.length, digits.length);
         onAutoTwapInputsChanged(); // preventDefault chặn luôn 'input' tự nhiên nên phải tự gọi lại
+        if (isDelete || digits.length < 2 || !nextEl) return;
+        // Gõ/dán cả cụm (VD "1445") có thể vào ô giờ trong 1 sự kiện duy nhất — chuyển phần dư sang ô phút
+        // thay vì để rơi mất, rồi mới chuyển con trỏ sang đó.
+        nextEl.focus();
+        var overflow = all.slice(2, 4);
+        if (overflow) {
+          nextEl.value = overflow;
+          nextEl.setSelectionRange(overflow.length, overflow.length);
+          onAutoTwapInputsChanged();
+        } else {
+          nextEl.select();
+        }
       });
+    }
+
+    // Ghép 2 ô giờ/phút thành chuỗi "HH:MM" — trả về '' nếu chưa nhập đủ cả 2 ô (kế hoạch chưa tính được).
+    function getTwapTime(prefix) {
+      var hh = document.getElementById(prefix + '-hh').value;
+      var mm = document.getElementById(prefix + '-mm').value;
+      if (!hh || !mm) return '';
+      return String(Math.min(23, parseInt(hh, 10) || 0)).padStart(2, '0') + ':' +
+             String(Math.min(59, parseInt(mm, 10) || 0)).padStart(2, '0');
+    }
+
+    // Điền "HH:MM" (hoặc '' để xoá trắng) vào cặp ô giờ/phút
+    function setTwapTime(prefix, hhmm) {
+      var parts = (hhmm || '').split(':');
+      document.getElementById(prefix + '-hh').value = parts[0] || '';
+      document.getElementById(prefix + '-mm').value = parts[1] || '';
     }
 
     function minutesToTimeStr(min) {
@@ -1470,8 +1500,8 @@
 
       var now = new Date();
       var defaultStart = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('twap-start-time').value = existingConfig ? existingConfig.startTime : defaultStart;
-      document.getElementById('twap-end-time').value = existingConfig ? existingConfig.endTime : '';
+      setTwapTime('twap-start', existingConfig ? existingConfig.startTime : defaultStart);
+      setTwapTime('twap-end', existingConfig ? existingConfig.endTime : '');
       document.getElementById('twap-interval').value = existingConfig ? existingConfig.interval : '';
       document.getElementById('twap-error').textContent = '';
       onAutoTwapInputsChanged();
@@ -1487,8 +1517,8 @@
       var qtyEl = document.getElementById('twap-preview-qty');
       var intervalEl = document.getElementById('twap-preview-interval');
 
-      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
-      var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
+      var startMin = timeToMinutes(getTwapTime('twap-start'));
+      var endMin = timeToMinutes(getTwapTime('twap-end'));
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
       var remBal = parseQty(document.getElementById('twap-rembal').textContent);
 
@@ -1515,8 +1545,8 @@
       var errorEl = document.getElementById('twap-error');
       errorEl.textContent = '';
 
-      var startMin = timeToMinutes(document.getElementById('twap-start-time').value);
-      var endMin = timeToMinutes(document.getElementById('twap-end-time').value);
+      var startMin = timeToMinutes(getTwapTime('twap-start'));
+      var endMin = timeToMinutes(getTwapTime('twap-end'));
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
       var remBal = parseQty(document.getElementById('twap-rembal').textContent);
       var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
@@ -1527,8 +1557,8 @@
       if (!tr) { closeModal('modal-auto-twap'); return; }
 
       autoTwapConfigs[twapTargetOrderId] = {
-        startTime: document.getElementById('twap-start-time').value,
-        endTime: document.getElementById('twap-end-time').value,
+        startTime: getTwapTime('twap-start'),
+        endTime: getTwapTime('twap-end'),
         interval: interval,
         effectiveInterval: result.effectiveInterval,
         plannedCount: result.totalCount,
@@ -2135,7 +2165,13 @@
     }
 
     ['ord-price', 'ord-qty'].forEach(function (id) { enableSelectAllOnFocus(id); });
-    ['twap-start-time', 'twap-end-time'].forEach(function (id) { setupTwapTimeInput(document.getElementById(id)); });
+    // Ô giờ (max 23) gõ đủ 2 số thì tự nhảy sang ô phút (max 59); ô phút đủ 2 số thì dừng, không nhảy tiếp.
+    ['twap-start', 'twap-end'].forEach(function (prefix) {
+      var hhEl = document.getElementById(prefix + '-hh');
+      var mmEl = document.getElementById(prefix + '-mm');
+      setupTwapTimePart(hhEl, 23, mmEl);
+      setupTwapTimePart(mmEl, 59, null);
+    });
     enableThousandsFormatOnBlur('ord-price', formatPrice, parsePrice); // đơn vị nghìn (vd 24600 <-> "24.6")
     enableThousandsFormatOnBlur('ord-qty', formatQty, parseQty);
 
