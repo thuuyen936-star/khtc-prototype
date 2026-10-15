@@ -70,6 +70,7 @@ chuỗi hiển thị trên UI.
 | `symbol` | string | Mã CK |
 | `qty` | int | Khối lượng đặt |
 | `price` | int (VND) | LmtPx — giá giới hạn |
+| `pendingEdit` | object \| null | `{ price, qty }` — yêu cầu sửa **đang chờ ACK**, chỉ có khi `status = Chờ xác nhận sửa`. Xem mục 3.2 |
 | `fillQty` | int | KL đã khớp (tính từ lệnh con) |
 | `avgPx` | **decimal** (VND) | Giá khớp bình quân (tính từ lệnh con) — **không làm tròn**, xem A1 |
 | `vwap` | **decimal** (VND) | VWAP thị trường — **không làm tròn**, xem A1 |
@@ -310,8 +311,26 @@ Nút `ACK` dùng chung cho 3 tình huống, **enable khi lệnh đang chọn ở
 | Trạng thái lệnh | ACK mở popup | Kết quả sau xác nhận |
 |---|---|---|
 | `Chờ xác nhận đặt` | Popup ACK (chọn Check Px 1/2/3) | → `Chờ xử lý`, ghi Chk Px |
-| `Chờ xác nhận sửa` | Popup "Xác nhận sửa lệnh tổng" | → `Đã gửi` **+ nếu Auto TWAP đang `active` → tự chuyển `paused`** (xem mục 7.4) |
+| `Chờ xác nhận sửa` | Popup "Xác nhận sửa lệnh tổng" (**so sánh trước/sau sửa** — xem dưới) | → `Đã gửi`, **áp dụng Giá/KL mới** **+ nếu Auto TWAP đang `active` → tự chuyển `paused`** (xem mục 7.4) |
 | `Chờ xác nhận hủy` | Popup "Hủy lệnh từ FixNet" | → `Đã hủy` + hủy toàn bộ lệnh con + Auto TWAP → `cancelled` |
+
+**Popup ACK "Xác nhận sửa lệnh tổng"** — header `Mã CK` + badge `MUA`/`BÁN`, sau đó 5 dòng:
+
+| Dòng | Nguồn dữ liệu |
+|---|---|
+| Giá trước sửa | Giá **hiện tại** của lệnh tổng |
+| Giá sau sửa | `pendingEdit.price` — giá của yêu cầu sửa đang chờ |
+| Khối lượng trước sửa | KL **hiện tại** của lệnh tổng |
+| Khối lượng sau sửa | `pendingEdit.qty` |
+| Số hiệu lệnh | `orderId` |
+
+- Ô "sau sửa" **tô vàng** (`warning`) khi khác giá trị cũ; không đổi thì để màu thường.
+- **Mô hình dữ liệu:** lệnh ở `Chờ xác nhận sửa` mang thêm `pendingEdit { price, qty }`. Giá/KL trên
+  **dòng lệnh tổng vẫn là giá trị CŨ** (lệnh gốc còn hiệu lực cho tới khi ACK).
+- **ACK** → ghi `pendingEdit` vào lệnh tổng (Giá, KL, **Net Value** tính lại), xóa `pendingEdit`, tính lại
+  các cột tổng hợp. Nếu `pendingEdit.qty` **giảm** thì áp dụng luôn luật hủy bớt lệnh con ở **mục 4.1.1**.
+  **REJECT** → xóa `pendingEdit`, giữ nguyên Giá/KL cũ.
+- Nếu lệnh không kèm `pendingEdit` thì 2 cột trước/sau hiển thị cùng giá trị hiện tại, không tô vàng.
 
 `REJECT` enable với cả 3 trạng thái chờ xác nhận, nhưng **kết quả khác nhau theo ý nghĩa**:
 - `Chờ xác nhận đặt`: từ chối cả lệnh mới → chuyển hẳn `Từ chối` (vòng đời kết thúc).
@@ -323,19 +342,40 @@ Nút `ACK` dùng chung cho 3 tình huống, **enable khi lệnh đang chọn ở
 
 | Trạng thái | ACK | REJECT | Sửa lệnh tổng | Huỷ Fix Net | Done 4 Day | Detail |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
-| Chờ xác nhận đặt | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
+| Chờ xác nhận đặt | ✅ | ✅ | ❌ *(✅ nếu `route = Broker` — xem ghi chú)* | ❌ | ❌ | ✅ |
 | Chờ xác nhận sửa/hủy | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
 | Chờ xử lý | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | Đã gửi / Khớp 1 phần | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ |
 | **Khớp hết / Đã hủy / Từ chối** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
 
-> Mọi nút trên (trừ Done 4 Day, Refresh) chỉ enable khi **có 1 dòng lệnh tổng đang được chọn**.
+> Mọi nút trên (trừ Refresh) chỉ enable khi **có 1 dòng lệnh tổng đang được chọn**.
+
+> **`Done 4 Day`** dùng **đúng luật trạng thái của `Huỷ từ Fix Net`**: lệnh `Khớp hết` / `Đã hủy` /
+> `Từ chối` và các trạng thái chờ xác nhận đều **không cho phép** Done 4 Day.
+
+> **`Done 4 Day` — ràng buộc thời gian:** ngoài ma trận trên, nút chỉ enable **sau giờ giao dịch, từ
+> `15:00` trở đi** (giờ hệ thống). Trước 15:00 luôn disable kèm tooltip *"Chỉ thực hiện được sau giờ giao
+> dịch (sau 15:00)"*. Trạng thái nút được kiểm tra lại định kỳ để tự mở khi qua mốc 15:00, không cần thao
+> tác chọn lại dòng.
+
+> **Ảnh hưởng của `route`:** `Sửa lệnh tổng` chỉ áp dụng cho lệnh `route = Broker` — lệnh `route = Manual`
+> luôn disable nút này. `Huỷ từ Fix Net` **áp dụng cho mọi lệnh**, không phân biệt `route`, chỉ phụ thuộc
+> trạng thái theo ma trận trên.
+>
+> **Ngoại lệ `Chờ xác nhận đặt` + `route = Broker`:** lệnh đã đặt nhưng **chưa ACK** vẫn **được sửa
+> Giá/KL** (ô `Sửa lệnh tổng` trong ma trận đổi từ ❌ sang ✅ cho riêng trường hợp này). Sửa xong lệnh
+> **vẫn ở `Chờ xác nhận đặt`**, `ACK`/`REJECT` tiếp tục áp dụng bình thường. Lệnh `route = Manual` ở
+> `Chờ xác nhận đặt` vẫn **không** sửa được.
 
 ---
 
 ## 4. SỬA / HỦY LỆNH TỔNG
 
 ### 4.1. Sửa lệnh tổng
+
+**Điều kiện:** `route = Broker` **và** lệnh ở trạng thái `Chờ xử lý` / `Đã gửi` / `Khớp 1 phần`, **hoặc**
+`Chờ xác nhận đặt` (sửa trước khi ACK — xem ghi chú ở mục 3). Sửa khi đang `Chờ xác nhận đặt` **không
+đổi trạng thái**, lệnh vẫn chờ `ACK`/`REJECT`.
 
 **Luồng:** Chọn lệnh tổng → bấm `Sửa lệnh tổng` (nút chuyển nền primary) → khung đặt lệnh chuyển chế độ sửa:
 - **Giá và Khối lượng được fill sẵn giá trị gốc của lệnh tổng**, con trỏ tự đặt tại ô Giá.
@@ -347,13 +387,52 @@ Nút `ACK` dùng chung cho 3 tình huống, **enable khi lệnh đang chọn ở
 
 **Sau khi xác nhận:** cập nhật ngay Giá/KL/Net Value của lệnh tổng, **lệnh giữ nguyên trạng thái hoạt động, không qua bước chờ ACK**; khung quay lại chế độ Đặt lệnh con.
 
+#### 4.1.1. Sửa GIẢM khối lượng — tự hủy bớt lệnh con chờ khớp
+
+Khi KL mới nhỏ hơn KL cũ, hệ thống phải đối chiếu với lệnh con đang có:
+
+```
+KL đã khớp   = tổng KL khớp của MỌI lệnh con (kể cả lệnh con đã hủy / đã sửa) = Fill Qty
+KL chờ khớp  = tổng (KL đặt − KL khớp) của lệnh con CÒN HIỆU LỰC             = REM PLACE
+               (bỏ qua lệnh con "Đã hủy" và "Đã sửa"; lệnh con "Khớp hết" có phần chờ = 0)
+```
+
+- **Chỉ hủy lệnh con khi `KL đã khớp + KL chờ khớp > KL mới`.** Nếu `≤ KL mới` thì **không đụng tới
+  lệnh con nào** (kể cả khi KL lệnh tổng giảm).
+- Khi phải hủy: hủy **lần lượt từ lệnh con đặt GẦN NHẤT tới XA NHẤT** (giờ đặt giảm dần; cùng giờ thì
+  lệnh sinh sau bị hủy trước), **dừng ngay khi** `KL đã khớp + KL chờ khớp ≤ KL mới`.
+- Hủy 1 lệnh con chỉ bỏ được **phần chưa khớp** của nó (`KL đặt − KL khớp`): lệnh con `Khớp 1 phần` bị
+  hủy vẫn giữ nguyên phần đã khớp trong `Fill Qty`, phần còn lại cộng vào `KL hủy`.
+- Lệnh con **`Khớp hết` không bao giờ là ứng viên bị hủy** (không còn KL chờ khớp).
+- Vì chỉ hủy được **trọn** một lệnh con, kết quả có thể thấp hơn KL mới (`REM BAL > 0`) — chấp nhận.
+
+**Áp dụng cho cả 2 đường sửa KL:** sửa trực tiếp qua `Sửa lệnh tổng` (mục 4.1) **và** ACK một yêu cầu
+sửa đang chờ (`pendingEdit`, mục 3.2).
+
+> **Ví dụ** — lệnh tổng 2,000; lệnh con: `09:10` 400 (khớp hết 400), `09:20` 400 (khớp 100),
+> `09:30` 400, `09:40` 400 ⇒ đã khớp 500, chờ khớp 1,100.
+>
+> | Sửa KL về | Kiểm tra | Lệnh con bị hủy | KL hủy |
+> |---|---|---|---|
+> | 1,600 | 500 + 1,100 = 1,600 **≤** 1,600 | *không hủy gì* | 0 |
+> | 1,200 | 1,600 > 1,200 → hủy `09:40` ⇒ còn 1,200 | `09:40` | 400 |
+> | 900 | 1,200 > 900 → hủy `09:30` ⇒ còn 800 | `09:30` | 800 |
+> | 600 | 800 > 600 → hủy `09:20` (chỉ 300 chưa khớp) ⇒ còn 500 | `09:20` | 1,100 |
+>
+> Lệnh con `09:10` (Khớp hết) không bị đụng ở bất kỳ bước nào.
+
 ### 4.2. Hủy lệnh tổng (Huỷ từ Fix Net)
 
 Bấm `Huỷ từ Fix Net` → popup "**Hủy lệnh từ FixNet**" (tiêu đề **màu đỏ**, header Mã CK + badge Mua/Bán, nút `Xác nhận hủy Mua/Bán` màu theo Mua/Bán).
 
+**Điều kiện:** áp dụng cho **mọi lệnh tổng**, không phân biệt `route` (`Manual` hay `Broker`). Lệnh tổng đã
+`Khớp hết` (cũng như `Đã hủy` / `Từ chối`) **không cho phép hủy** — nút disable theo ma trận ở mục 3.
+
 **Sau khi xác nhận:**
 - Lệnh tổng → `Đã hủy`
-- **Toàn bộ lệnh con còn hiệu lực → `Đã hủy`**
+- **Lệnh con chưa khớp hết → `Đã hủy`** (chỉ hủy phần **chưa khớp**: `KL còn lại = 0`, `KL hủy` của lệnh
+  tổng cộng thêm `KL − KL khớp`; phần đã khớp vẫn giữ trong `Fill Qty`)
+- **Lệnh con đã `Khớp hết` → giữ nguyên `Khớp hết`**, không đụng tới (không còn KL để hủy)
 - **Nếu Auto TWAP đang `active`/`paused` → chuyển `cancelled`**, khóa nút Auto TWAP
 
 ---
@@ -426,10 +505,13 @@ SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
 Thời gian bắt đầu      [09] : [00]
 Thời gian kết thúc     [14] : [45]   ← mặc định 14:45
 Tần suất đẩy lệnh (nhỏ nhất)  [15]
+% KL phiên ATO         [    ]   ← bỏ trống = chia đều
+% KL phiên ATC         [    ]   ← bỏ trống = chia đều
 ── Dự kiến ──────────────────────────
 Số lệnh        1 ATO + 7 liên tục = 8 lệnh
 KL mỗi lệnh    200 – 300
 Tần suất hiệu lực   15 phút
+[ghi chú % không áp dụng được]
 [thông báo lỗi]
       ✔ Đã xác thực
         [Hủy]  [Xác nhận]
@@ -450,8 +532,15 @@ Tần suất hiệu lực   15 phút
   - **TUYỆT ĐỐI không ghi vào `value` của ô khi IME đang soạn.** Phải theo dõi `compositionstart`/`compositionend`: trong lúc soạn thì để nguyên ô, soạn xong (`compositionend`) mới chuẩn hoá giá trị. Ghi đè giữa lúc soạn sẽ **phá trạng thái soạn của bộ gõ** — ký tự vừa gõ biến mất và không gõ tiếp được cho tới khi click ra ngoài rồi click lại. Lỗi này **chỉ xuất hiện với bàn phím tiếng Việt**; bàn phím tiếng Anh không đi qua composition nên test bằng tiếng Anh sẽ không phát hiện được — **phải test riêng bằng bàn phím tiếng Việt**.
   - Lớp `input` phải **làm sạch** giá trị hiện tại (bỏ ký tự không phải số → cắt còn tối đa 2 chữ số → bỏ bớt chữ số cuối cho tới khi ≤ giá trị tối đa), **không** được khôi phục về một giá trị lưu sẵn: giá trị lưu sẵn có thể đã lỗi thời (vì các ô được điền bằng JS khi mở màn hình, không phát sinh sự kiện `input`) và sẽ làm ô bị **xoá trắng**.
   - Khi lớp `input` chạy trong lúc cờ "gõ là thay thế" vẫn đang bật (tức trình duyệt đã chèn thêm vào giá trị cũ thay vì thay thế), phải **tách lấy đúng phần vừa nhập** rồi bỏ giá trị cũ đi.
-- Không còn checkbox/tỷ trọng % theo phiên — hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ 3 trường, hiển thị real-time ở khối "Dự kiến".
-- "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư.
+- **`% KL phiên ATO` / `% KL phiên ATC`** (mới): tỷ lệ % **trên REM BAL** chốt riêng cho lệnh ATO/ATC.
+  - **Bỏ trống = không khai báo** → phiên đó tham gia **chia đều như hiện tại** (hành vi cũ giữ nguyên
+    100%, kể cả khi chỉ khai 1 trong 2 ô).
+  - Nhận số **1–100**; công thức và các trường hợp lỗi xem **6.3 / 6.4**.
+  - Nếu khung giờ **không chạy qua** phiên đã khai % (VD khai `% ATO` nhưng bắt đầu sau 09:15) thì tỷ lệ
+    đó **không áp dụng** và màn hình hiện ghi chú màu warning: *"Khung giờ không chạy qua phiên ATO — tỷ
+    lệ % đã khai cho phiên này không được áp dụng."* (ghi chú, **không** chặn xác nhận).
+- Hệ thống **tự suy** ATO/ATC theo khung giờ (xem 6.3) và **tự lập kế hoạch** ngay khi broker gõ đủ các trường bắt buộc, hiển thị real-time ở khối "Dự kiến".
+- "KL mỗi lệnh" hiển thị dạng **khoảng giá trị** (VD "200 – 300") khi phần dư khối lượng được rải cho một số lệnh cuối (xem 6.3) — chỉ hiện 1 số khi không có phần dư. Khi **có khai %**, dòng này tách thành từng phần, VD: `ATO 200 (25%) · còn lại 100 – 200 · ATC 200 (25%)`.
 - **Dòng "✔ Đã xác thực"** đặt ngay trên hàng nút, giống chuẩn màn xác nhận (§3.1/§8.2). Màn này dùng
   chung cho cả **Cài đặt mới** và **Sửa** (mục 7.1 mở lại đúng modal này với cấu hình cũ điền sẵn), nên
   không cần lặp lại ở nơi khác.
@@ -489,11 +578,24 @@ nếu totalCount > maxByLot100:
 // thay vì đặt lệnh cách đúng "Tần suất tối thiểu" rồi bỏ phí thời gian dư ở cuối khung giờ.
 Tần suất hiệu lực = floor(availableMin / contCount)   ← hiển thị lại cho broker, không kèm ghi chú gì thêm
 
-// Chia đều REM BAL cho MỌI lệnh trong kế hoạch (kể cả ATO/ATC)
-KL mỗi lệnh (base)  = floor(REM BAL / totalCount / 100) × 100
-phần dư             = REM BAL − KL mỗi lệnh × totalCount
+// ===== Tỷ lệ % khai riêng cho ATO/ATC (bỏ trống cả 2 ô → fixedTotal = fixedCount = 0, công thức
+// bên dưới trở về ĐÚNG công thức chia đều cũ) =====
+// Chỉ áp dụng cho phiên THỰC SỰ có trong kế hoạch (hasAto / hasAtc = true)
+KL phiên khai %   = floor(REM BAL × % / 100 / 100) × 100     ← luôn làm tròn XUỐNG bội số 100
+fixedTotal        = tổng KL các phiên đã khai %
+fixedCount        = số phiên đã khai % (0, 1 hoặc 2)
+
+// Chia đều phần CÒN LẠI cho những lệnh KHÔNG khai % (các lệnh liên tục + ATO/ATC bỏ trống)
+splitQty            = REM BAL − fixedTotal
+splitCount          = totalCount − fixedCount
+KL mỗi lệnh (base)  = floor(splitQty / splitCount / 100) × 100
+phần dư             = splitQty − KL mỗi lệnh × splitCount
 số lệnh nhận thêm   = floor(phần dư / 100)
 KL lệnh nhận thêm   = KL mỗi lệnh + 100
+
+// splitCount = 0 (mọi lệnh trong kế hoạch đều khai %): phần lẻ chưa phân bổ dồn vào lệnh cuối cùng,
+// để tổng kế hoạch luôn khớp đúng REM BAL.
+// Lệnh đã khai % KHÔNG tham gia rải lô dư — giữ đúng KL theo tỷ lệ.
 
 // Rải "số lệnh nhận thêm" lô 100 ĐỀU theo thời gian trong các lệnh liên tục (không dồn cụm ở cuối phiên):
 // nếu có ATC, ATC luôn nhận đúng 1 lô (ATC luôn là lệnh cuối cùng trong ngày); phần dư còn lại rải đều
@@ -514,8 +616,12 @@ KL lệnh nhận thêm   = KL mỗi lệnh + 100
 | REM BAL không đủ 100 cổ phiếu cho ATO/ATC bắt buộc | "REM BAL quá nhỏ, không đủ 100 cổ phiếu cho các lệnh ATO/ATC bắt buộc." |
 | REM BAL không đủ 100 cổ phiếu (không có ATO/ATC bắt buộc, chỉ có lệnh liên tục) | "REM BAL quá nhỏ, không đủ 100 cổ phiếu để lập kế hoạch." |
 | Khung giờ/Tần suất khiến tổng số lệnh = 0 | "Khung giờ/Tần suất không hợp lệ, không lập được kế hoạch." |
+| `% ATO`/`% ATC` nhập ngoài khoảng 1–100 (hoặc không phải số) | "Tỷ lệ % KL phiên ATO/ATC phải là số trong khoảng 1–100." |
+| `% ATO`/`% ATC` quá nhỏ → KL chốt < 100 cổ phiếu | "Tỷ lệ % phiên {ATO\|ATC} quá nhỏ — không đủ 100 cổ phiếu." |
+| Tổng KL theo % vượt REM BAL | "Tổng tỷ lệ % phiên ATO + ATC vượt quá REM BAL." |
+| % quá lớn → KL còn lại không đủ 100 cho mỗi lệnh còn lại | "Tỷ lệ % phiên ATO/ATC quá lớn — KL còn lại không đủ 100 cổ phiếu cho mỗi lệnh còn lại." |
 
-**Sau khi xác nhận:** lưu cấu hình gồm `startTime, endTime, interval, effectiveInterval, plannedCount, plan[]` (mỗi phần tử: `seq, session, timeMin, qty`); `autoTwap` → `active` (nếu trước đó là `none`); nếu đang sửa cấu hình của lệnh `active`/`paused` thì **giữ nguyên trạng thái hiện tại**.
+**Sau khi xác nhận:** lưu cấu hình gồm `startTime, endTime, interval, atoPct, atcPct, effectiveInterval, plannedCount, plan[]` (mỗi phần tử: `seq, session, timeMin, qty, pctFixed`); `atoPct`/`atcPct` = `null` khi bỏ trống. `autoTwap` → `active` (nếu trước đó là `none`); nếu đang sửa cấu hình của lệnh `active`/`paused` thì **giữ nguyên trạng thái hiện tại**.
 
 ### 6.5. Sinh lệnh con tự động
 
@@ -544,6 +650,7 @@ SCBFCA8060 - Tên tài khoản · Tiểu khoản PPL - PPL01
 │ Tần suất hiệu lực     15 phút      │
 │ Số lệnh kế hoạch còn lại 5 lệnh    │
 │ Số lệnh đã sinh       3 lệnh       │ ← đếm lệnh con có người đặt = Auto Twap
+│ % KL phiên ATO/ATC  ATO 25% · ATC 25% │ ← "Chia đều" khi không khai % nào
 └────────────────────────────────────┘
       [Sửa]      [Tạm dừng]
 ── Lệnh đã đẩy (3) ──────────────────
@@ -591,12 +698,16 @@ Màn hình hiển thị **2 bảng riêng biệt**, không gộp chung để tr�
 
 **Kế hoạch còn lại CHỈ được tính lại khi bấm "Tiếp tục"** (không tính lại ở bất kỳ thời điểm nào khác —
 kể cả khi mở lại màn quản lý nhiều lần). Khi chuyển `paused` → `active`, hệ thống lập lại kế hoạch bằng
-đúng công thức ở mục 6.3, dùng lại `startTime`/`endTime`/`interval` đã cài, **REM BAL hiện tại** (đã thay
+đúng công thức ở mục 6.3, dùng lại `startTime`/`endTime`/`interval` **và `atoPct`/`atcPct`** đã cài, **REM BAL hiện tại** (đã thay
 đổi do lệnh con khớp thêm hoặc do broker đặt tay trong lúc tạm dừng), nhưng với một điểm khác biệt quan
 trọng: **mốc bắt đầu lập kế hoạch không phải là `startTime` đã cấu hình, mà là giờ máy thật tại thời điểm
 bấm "Tiếp tục"** (lấy giá trị lớn hơn giữa hai mốc đó). Các lệnh Auto Twap đã đẩy trước thời điểm này giữ
 nguyên không đổi — đây là hành động sống, xảy ra tại 1 thời điểm thực, nên không hợp lý nếu kế hoạch mới
 lại chứa các mốc giờ đã trôi qua.
+
+Tỷ lệ % đã khai được **giữ nguyên** và áp lên REM BAL **mới**, không phải REM BAL lúc cài đặt. Nếu kế
+hoạch tính lại không còn chạy qua phiên đã khai % (VD bấm "Tiếp tục" lúc 11:00 thì không còn ATO), tỷ lệ
+của phiên đó đơn giản là **không áp dụng** — phần KL quay về chia đều cho các lệnh còn lại.
 
 Nếu lệnh ATC (chỉ có đúng 1 lệnh mỗi ngày) đã được đẩy trước đó, kế hoạch tính lại **không** lập thêm một
 lệnh ATC nữa. Kết quả (`effectiveInterval`, `plannedCount`, `plan[]`) ghi đè lên cấu hình cũ; các lệnh con
@@ -666,7 +777,7 @@ Mọi popup thao tác lệnh (đặt/sửa/hủy — cả lệnh tổng và lệ
 
 | Hạng mục | Ghi chú |
 |---|---|
-| Nút **Done 4 Day** | Chưa có logic — cần đặc tả nghiệp vụ |
+| Nút **Done 4 Day** | Đã có điều kiện enable (sau 15:00 — xem mục 3); **hành vi khi bấm** vẫn chưa có logic, cần đặc tả nghiệp vụ |
 | Nút **Refresh** (toolbar bảng lệnh tổng) | Chưa có logic — dự kiến tải lại dữ liệu từ server |
 | Trạng thái lệnh con **`Chờ xác nhận`** | Đã định nghĩa màu nhưng **chưa có luồng nào sinh ra** — cần làm rõ khi nào lệnh con rơi vào trạng thái này |
 | Ràng buộc **giá lệnh con vs LmtPx** | Prototype chưa chặn; khuyến nghị chặn (Mua ≤ LmtPx, Bán ≥ LmtPx) |
@@ -686,7 +797,7 @@ Mọi popup thao tác lệnh (đặt/sửa/hủy — cả lệnh tổng và lệ
 | LT20260615-02 | Đã gửi | Tạm dừng | TWAP tạm dừng, còn REM BAL 500 để chạy tiếp |
 | LT20260616-01 | Chờ xác nhận đặt | None | Chưa ACK → không cho đặt lệnh con / cài TWAP |
 | LT20260616-02 | Chờ xử lý | None | Đã ACK, chưa có lệnh con |
-| LT20260617-01 | Chờ xác nhận sửa | None | Chờ ACK yêu cầu sửa |
+| LT20260617-01 | Chờ xác nhận sửa | None | Chờ ACK yêu cầu sửa — `pendingEdit`: giá 24.7 → **25**, KL 1,500 → **2,000** |
 | LT20260617-02 | Đã hủy | None | Vẫn chọn được để xem Detail |
 | LT20260617-03 | Khớp hết | None | Lệnh **Mua** VIC, Avg Px 45,200 > VWAP 44,500 ⇒ **% PR = −1.57% → dưới ngưỡng −0.6%, hiện cảnh báo** |
 | LT20260617-04 | Chờ xác nhận hủy | None | Chờ ACK yêu cầu hủy |

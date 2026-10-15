@@ -85,6 +85,9 @@ var PARENT_ORDERS = [
     status: 'Chờ xác nhận sửa', side: 'Mua', account: 'SCBB116688', subaccount: '0001067447',
     symbol: 'HPG', qty: 1500, price: 24700, fillQty: 250, avgPx: 24700, vwap: 24719.6153,
     orderType: 'LO', note: '', marketVol: 5000000,
+    // Yêu cầu sửa đang chờ ACK: giá/KL ở trên là giá trị CŨ (lệnh gốc vẫn còn hiệu lực),
+    // pendingEdit là giá trị SẼ áp dụng nếu broker bấm ACK. REJECT thì bỏ pendingEdit, giữ giá trị cũ.
+    pendingEdit: { price: 25000, qty: 2000 },
     tradeId: ''
   },
   {

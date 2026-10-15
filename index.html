@@ -387,6 +387,8 @@
   .modal-kv-group-2col .modal-kv-row:nth-last-child(-n+2) { border-bottom:none; }
   .modal-kv-row label { color:var(--text-dim); }
   .modal-kv-row span { color:var(--text-title); font-weight:600; font-family:var(--font-ui); }
+  /* Popup so sánh trước/sau sửa: tô vàng ô có thay đổi để broker đối chiếu nhanh */
+  .modal-kv-row span.kv-changed { color:var(--warning); }
   .modal-verified { display:flex; align-items:center; justify-content:center; gap:6px;
                      color: var(--teal); font-size:var(--fs-small); margin:14px 0 2px; }
 
@@ -1065,6 +1067,8 @@
           </span>
         </div>
         <div class="modal-kv-row"><label>Tần suất đẩy lệnh (nhỏ nhất)</label><input type="number" min="1" id="twap-interval" placeholder="Số phút" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>% KL phiên ATO</label><input type="number" min="1" max="100" id="twap-ato-pct" placeholder="Bỏ trống = chia đều" oninput="onAutoTwapInputsChanged()"></div>
+        <div class="modal-kv-row"><label>% KL phiên ATC</label><input type="number" min="1" max="100" id="twap-atc-pct" placeholder="Bỏ trống = chia đều" oninput="onAutoTwapInputsChanged()"></div>
       </div>
 
       <div class="twap-section-title">Dự kiến</div>
@@ -1074,6 +1078,7 @@
         <div class="modal-kv-row"><label>Tần suất hiệu lực</label><span id="twap-preview-interval">—</span></div>
       </div>
 
+      <div id="twap-pct-note" style="color:var(--warning);font-size:var(--fs-small);margin-top:8px;"></div>
       <div id="twap-error" style="color:var(--sell);font-size:var(--fs-small);min-height:16px;margin-top:8px;"></div>
 
       <div class="modal-verified">✔ Đã xác thực</div>
@@ -1103,6 +1108,7 @@
         <div class="modal-kv-row"><label>Thời gian kết thúc</label><span id="twapview-end"></span></div>
         <div class="modal-kv-row"><label>Số lệnh đã sinh</label><span id="twapview-generated"></span></div>
         <div class="modal-kv-row"><label>Số lệnh kế hoạch còn lại</label><span id="twapview-planned"></span></div>
+        <div class="modal-kv-row"><label>% KL phiên ATO/ATC</label><span id="twapview-pct"></span></div>
       </div>
       <div class="modal-actions modal-actions-compact">
         <button class="modal-btn confirm" id="twapview-edit-btn" onclick="editAutoTwapFromReview()">Sửa</button>
@@ -1132,10 +1138,15 @@
         <span class="modal-title">Xác nhận sửa lệnh tổng</span>
         <span class="modal-close" onclick="closeModal('modal-ack-edit')">✕</span>
       </div>
+      <div class="modal-order-header">
+        <div class="modal-order-symbol" id="ackedit-header-symbol"></div>
+        <div class="modal-order-side" id="ackedit-header-side"></div>
+      </div>
       <div class="modal-kv-group">
-        <div class="modal-kv-row"><label>Lệnh</label><span id="ackedit-summary"></span></div>
-        <div class="modal-kv-row"><label>Mã CK</label><span id="ackedit-symbol"></span></div>
-        <div class="modal-kv-row"><label>Giá</label><span id="ackedit-price"></span></div>
+        <div class="modal-kv-row"><label>Giá trước sửa</label><span id="ackedit-price-before"></span></div>
+        <div class="modal-kv-row"><label>Giá sau sửa</label><span id="ackedit-price-after"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng trước sửa</label><span id="ackedit-qty-before"></span></div>
+        <div class="modal-kv-row"><label>Khối lượng sau sửa</label><span id="ackedit-qty-after"></span></div>
         <div class="modal-kv-row"><label>Số hiệu lệnh</label><span id="ackedit-orderid"></span></div>
       </div>
       <div class="modal-verified">✔ Đã xác thực</div>
@@ -1434,7 +1445,14 @@
       return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
     }
 
-    function computeAutoTwapPlan(startMin, endMin, interval, remBal) {
+    // atoPct / atcPct: tỷ lệ % KL khai báo riêng cho phiên ATO/ATC. null = BỎ TRỐNG (không khai báo),
+    // phiên đó tham gia chia đều như cũ. NaN = giá trị nhập không hợp lệ.
+    function computeAutoTwapPlan(startMin, endMin, interval, remBal, atoPct, atcPct) {
+      atoPct = (atoPct === undefined ? null : atoPct);
+      atcPct = (atcPct === undefined ? null : atcPct);
+      if (isNaN(atoPct) || isNaN(atcPct)) {
+        return { error: 'Tỷ lệ % KL phiên ATO/ATC phải là số trong khoảng 1–100.' };
+      }
       if (startMin === null || endMin === null || endMin <= startMin || interval <= 0 || remBal <= 0) {
         return { error: 'Vui lòng nhập đầy đủ Thời gian bắt đầu/kết thúc/Tần suất hợp lệ.' };
       }
@@ -1475,46 +1493,90 @@
       // đặt lệnh cách đúng `interval` phút và bỏ phí thời gian dư ở cuối khung giờ.
       var effectiveInterval = contCount > 0 ? Math.floor(availableMin / contCount) : null;
 
+      // ===== Tỷ lệ % KL khai báo riêng cho phiên ATO/ATC =====
+      // Chỉ áp dụng cho phiên THỰC SỰ có trong kế hoạch. KL chốt theo % luôn làm tròn XUỐNG bội số 100.
+      // Phần KL còn lại sau khi trừ các phiên đã khai % mới đem chia đều cho những lệnh còn lại.
+      var fixed = {};                      // 'ato'/'atc' -> KL chốt theo tỷ lệ %
+      var fixedTotal = 0, fixedCount = 0, pctError = null;
+      var ignoredPct = [];                 // phiên có khai % nhưng khung giờ không chạy tới
+      [{ s: 'ato', has: hasAto, pct: atoPct, label: 'ATO' },
+       { s: 'atc', has: hasAtc, pct: atcPct, label: 'ATC' }].forEach(function (f) {
+        if (f.pct !== null && !f.has) ignoredPct.push(f.label);
+        if (f.pct === null || !f.has) return; // bỏ trống, hoặc kế hoạch không có phiên này
+        var q = Math.floor(remBal * f.pct / 100 / 100) * 100;
+        if (q < 100) { pctError = 'Tỷ lệ % phiên ' + f.label + ' quá nhỏ — không đủ 100 cổ phiếu.'; return; }
+        fixed[f.s] = q; fixedTotal += q; fixedCount++;
+      });
+      if (pctError) return { error: pctError };
+      if (fixedTotal > remBal) return { error: 'Tổng tỷ lệ % phiên ATO + ATC vượt quá REM BAL.' };
+
+      var splitQty = remBal - fixedTotal;      // KL đem chia đều
+      var splitCount = totalCount - fixedCount; // số lệnh tham gia chia đều
+      if (splitCount > 0 && Math.floor(splitQty / 100) < splitCount) {
+        return { error: 'Tỷ lệ % phiên ATO/ATC quá lớn — KL còn lại không đủ 100 cổ phiếu cho mỗi lệnh còn lại.' };
+      }
+
       // Rải phần dư (bội số 100) cho vài lệnh CUỐI CÙNG (mỗi lệnh +1 lô) thay vì dồn hết vào 1 lệnh —
       // chênh lệch giữa lệnh lớn nhất/nhỏ nhất trong kế hoạch tối đa chỉ còn 1 lô 100 cổ phiếu.
-      var perOrderQty = Math.floor(remBal / totalCount / 100) * 100;
-      var remainder = remBal - perOrderQty * totalCount;
+      var perOrderQty = splitCount > 0 ? Math.floor(splitQty / splitCount / 100) * 100 : 0;
+      var remainder = splitCount > 0 ? splitQty - perOrderQty * splitCount : splitQty;
       var bumpCount = Math.floor(remainder / 100);
       var bumpedQty = perOrderQty + 100;
       var finalRemainder = remainder - bumpCount * 100; // an toàn nếu remBal lẻ bội số 100 (không đúng chẵn lô)
 
       var plan = [];
-      if (hasAto) plan.push({ session: 'ato', timeMin: TWAP_ATO_START, qty: perOrderQty });
+      if (hasAto) plan.push({ session: 'ato', timeMin: TWAP_ATO_START, qty: fixed.ato !== undefined ? fixed.ato : perOrderQty, pctFixed: fixed.ato !== undefined });
       var contStartIdx = plan.length;
       var t = clampedStart;
       for (var i = 0; i < contCount; i++) {
         if (t >= TWAP_LUNCH_START && t < TWAP_LUNCH_END) t = TWAP_LUNCH_END;
-        plan.push({ session: 'continuous', timeMin: t, qty: perOrderQty });
+        plan.push({ session: 'continuous', timeMin: t, qty: perOrderQty, pctFixed: false });
         t += effectiveInterval;
       }
-      if (hasAtc) plan.push({ session: 'atc', timeMin: TWAP_ATC_TIME, qty: perOrderQty });
+      if (hasAtc) plan.push({ session: 'atc', timeMin: TWAP_ATC_TIME, qty: fixed.atc !== undefined ? fixed.atc : perOrderQty, pctFixed: fixed.atc !== undefined });
       plan.forEach(function (p, idx) { p.seq = idx + 1; });
 
-      // Rải bumpCount lô 100 dư: nếu có ATC, ATC luôn nhận đúng 1 lô (ATC luôn là lệnh cuối cùng trong
-      // ngày). Phần dư còn lại rải ĐỀU theo thời gian trong các lệnh liên tục — dùng thuật toán phân bố
-      // đều kinh điển (floor((i+1)*K/N) > floor(i*K/N)) để trải rộng theo suốt khung giờ hiệu lực, thay
-      // vì dồn cụm ở cuối phiên như trước. ATO không tham gia rải — luôn nhận đúng KL cơ bản.
-      if (hasAtc && bumpCount > 0) plan[plan.length - 1].qty = bumpedQty;
-      var contBumpCount = bumpCount - (hasAtc && bumpCount > 0 ? 1 : 0);
-      if (contBumpCount > 0) {
-        for (var ci = 0; ci < contCount; ci++) {
-          if (Math.floor((ci + 1) * contBumpCount / contCount) > Math.floor(ci * contBumpCount / contCount)) {
-            plan[contStartIdx + ci].qty = bumpedQty;
+      if (splitCount === 0) {
+        // Mọi lệnh trong kế hoạch đều đã khai % → phần lẻ chưa phân bổ dồn vào lệnh cuối cùng
+        if (splitQty > 0) plan[plan.length - 1].qty += splitQty;
+      } else {
+        // Rải bumpCount lô 100 dư: nếu có ATC (và ATC KHÔNG khai %), ATC luôn nhận đúng 1 lô (ATC luôn là
+        // lệnh cuối cùng trong ngày). Phần dư còn lại rải ĐỀU theo thời gian trong các lệnh liên tục —
+        // dùng thuật toán phân bố đều kinh điển (floor((i+1)*K/N) > floor(i*K/N)) để trải rộng theo suốt
+        // khung giờ hiệu lực, thay vì dồn cụm ở cuối phiên như trước. ATO không tham gia rải — luôn nhận
+        // đúng KL cơ bản. Lệnh đã khai % giữ nguyên KL theo tỷ lệ, không nhận lô dư.
+        var atcFloating = hasAtc && fixed.atc === undefined;
+        if (atcFloating && bumpCount > 0) plan[plan.length - 1].qty = bumpedQty;
+        var contBumpCount = bumpCount - (atcFloating && bumpCount > 0 ? 1 : 0);
+        if (contBumpCount > 0) {
+          for (var ci = 0; ci < contCount; ci++) {
+            if (Math.floor((ci + 1) * contBumpCount / contCount) > Math.floor(ci * contBumpCount / contCount)) {
+              plan[contStartIdx + ci].qty = bumpedQty;
+            }
           }
         }
+        if (finalRemainder > 0) {
+          var lastFloatingIdx = -1;
+          plan.forEach(function (p, i2) { if (!p.pctFixed) lastFloatingIdx = i2; });
+          plan[lastFloatingIdx >= 0 ? lastFloatingIdx : plan.length - 1].qty += finalRemainder;
+        }
       }
-      if (finalRemainder > 0) plan[plan.length - 1].qty += finalRemainder;
 
       return {
         ato: hasAto, atc: hasAtc, contCount: contCount, totalCount: totalCount,
         interval: interval, effectiveInterval: effectiveInterval,
-        perOrderQty: perOrderQty, bumpedQty: bumpedQty, bumpCount: bumpCount, plan: plan
+        perOrderQty: perOrderQty, bumpedQty: bumpedQty, bumpCount: bumpCount,
+        fixed: fixed, splitCount: splitCount, atoPct: atoPct, atcPct: atcPct,
+        ignoredPct: ignoredPct, plan: plan
       };
+    }
+
+    // Đọc ô % KL phiên ATO/ATC: bỏ trống → null (chia đều như cũ); nhập sai → NaN
+    function getTwapPct(id) {
+      var v = document.getElementById(id).value.trim();
+      if (v === '') return null;
+      var n = parseFloat(v);
+      return (isNaN(n) || n <= 0 || n > 100) ? NaN : n;
     }
 
     // Đếm số lệnh con đã được Auto TWAP tự sinh (trader "Auto Twap") cho 1 lệnh tổng
@@ -1533,6 +1595,10 @@
       var d = new Date();
       return d.getHours() * 60 + d.getMinutes();
     }
+
+    // Hết giờ giao dịch: 15:00. "Done 4 Day" (chốt lệnh cuối ngày) chỉ thực hiện được SAU mốc này.
+    var TRADING_CLOSE_MIN = 15 * 60;
+    function isAfterTradingHours() { return nowMinutes() >= TRADING_CLOSE_MIN; }
 
     // Mốc thời gian đặt lệnh con Auto Twap muộn nhất đã đẩy cho 1 lệnh tổng, hoặc null nếu chưa có lệnh nào.
     function lastAutoTwapPushMin(orderId) {
@@ -1582,13 +1648,31 @@
       // Mặc định chạy tới hết phiên ATC (14:45) — broker chủ động sửa lại nếu muốn kết thúc sớm hơn
       setTwapTime('twap-end', existingConfig ? existingConfig.endTime : '14:45');
       document.getElementById('twap-interval').value = existingConfig ? existingConfig.interval : '';
+      // % KL phiên ATO/ATC: cấu hình cũ không khai (null/undefined) → để trống = chia đều như cũ
+      document.getElementById('twap-ato-pct').value = (existingConfig && existingConfig.atoPct != null) ? existingConfig.atoPct : '';
+      document.getElementById('twap-atc-pct').value = (existingConfig && existingConfig.atcPct != null) ? existingConfig.atcPct : '';
       document.getElementById('twap-error').textContent = '';
+      document.getElementById('twap-pct-note').textContent = '';
       onAutoTwapInputsChanged();
       openModal('modal-auto-twap');
     }
 
     function onAutoTwapInputsChanged() {
       recalcAutoTwapPreview();
+    }
+
+    // Dòng "KL mỗi lệnh" ở phần Dự kiến. Không khai % nào → giữ nguyên cách hiển thị cũ;
+    // có khai % thì tách riêng phần ATO/ATC chốt theo tỷ lệ và phần còn lại chia đều.
+    function formatTwapQtyPreview(result) {
+      var floating = result.bumpCount > 0
+        ? formatQty(result.perOrderQty) + ' – ' + formatQty(result.bumpedQty)
+        : formatQty(result.perOrderQty);
+      if (result.fixed.ato === undefined && result.fixed.atc === undefined) return floating;
+      var parts = [];
+      if (result.fixed.ato !== undefined) parts.push('ATO ' + formatQty(result.fixed.ato) + ' (' + result.atoPct + '%)');
+      if (result.splitCount > 0) parts.push('còn lại ' + floating);
+      if (result.fixed.atc !== undefined) parts.push('ATC ' + formatQty(result.fixed.atc) + ' (' + result.atcPct + '%)');
+      return parts.join(' · ');
     }
 
     function recalcAutoTwapPreview() {
@@ -1601,7 +1685,12 @@
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
       var remBal = parseQty(document.getElementById('twap-rembal').textContent);
 
-      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
+      var noteEl = document.getElementById('twap-pct-note');
+      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal,
+        getTwapPct('twap-ato-pct'), getTwapPct('twap-atc-pct'));
+      noteEl.textContent = (!result.error && result.ignoredPct.length)
+        ? 'Khung giờ không chạy qua phiên ' + result.ignoredPct.join('/') + ' — tỷ lệ % đã khai cho phiên này không được áp dụng.'
+        : '';
       if (result.error) {
         countEl.textContent = '—';
         qtyEl.textContent = '—';
@@ -1614,9 +1703,7 @@
       if (result.contCount > 0) parts.push(result.contCount + ' liên tục');
       if (result.atc) parts.push('1 ATC');
       countEl.textContent = parts.join(' + ') + ' = ' + result.totalCount + ' lệnh';
-      qtyEl.textContent = result.bumpCount > 0
-        ? formatQty(result.perOrderQty) + ' – ' + formatQty(result.bumpedQty)
-        : formatQty(result.perOrderQty);
+      qtyEl.textContent = formatTwapQtyPreview(result);
       intervalEl.textContent = result.effectiveInterval === null ? '—' : (result.effectiveInterval + ' phút');
     }
 
@@ -1628,7 +1715,8 @@
       var endMin = timeToMinutes(getTwapTime('twap-end'));
       var interval = parseInt(document.getElementById('twap-interval').value, 10) || 0;
       var remBal = parseQty(document.getElementById('twap-rembal').textContent);
-      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal);
+      var atoPct = getTwapPct('twap-ato-pct'), atcPct = getTwapPct('twap-atc-pct');
+      var result = computeAutoTwapPlan(startMin, endMin, interval, remBal, atoPct, atcPct);
 
       if (result.error) { errorEl.textContent = result.error; return; }
 
@@ -1639,6 +1727,7 @@
         startTime: getTwapTime('twap-start'),
         endTime: getTwapTime('twap-end'),
         interval: interval,
+        atoPct: atoPct, atcPct: atcPct, // null = không khai báo % → chia đều như cũ
         effectiveInterval: result.effectiveInterval,
         plannedCount: result.totalCount,
         plan: result.plan
@@ -1735,6 +1824,11 @@
       document.getElementById('twapview-interval').textContent = cfg ? (cfg.effectiveInterval + ' phút') : '—';
       document.getElementById('twapview-planned').textContent = (cfg ? cfg.plannedCount : 0) + ' lệnh';
       document.getElementById('twapview-generated').textContent = countAutoTwapGeneratedOrders(twapTargetOrderId) + ' lệnh';
+      // Không khai % nào → ghi rõ "Chia đều" cho khỏi hiểu nhầm là thiếu dữ liệu
+      var pctParts = [];
+      if (cfg && cfg.atoPct != null) pctParts.push('ATO ' + cfg.atoPct + '%');
+      if (cfg && cfg.atcPct != null) pctParts.push('ATC ' + cfg.atcPct + '%');
+      document.getElementById('twapview-pct').textContent = pctParts.length ? pctParts.join(' · ') : 'Chia đều';
 
       renderAutoTwapPushedTable(twapTargetOrderId);
       renderAutoTwapRemainingPlanTable(cfg);
@@ -1776,7 +1870,9 @@
         if (cfg) {
           var remBalNow = parseQty(tr.querySelector('.col-rembal').textContent);
           var win = getAutoTwapRemainingWindow(twapTargetOrderId, timeToMinutes(cfg.startTime), timeToMinutes(cfg.endTime), nowMinutes());
-          var result = computeAutoTwapPlan(win.startMin, win.endMin, cfg.interval, remBalNow);
+          // Tính lại kế hoạch theo REM BAL hiện tại nhưng GIỮ nguyên tỷ lệ % ATO/ATC đã khai lúc cài đặt
+          var result = computeAutoTwapPlan(win.startMin, win.endMin, cfg.interval, remBalNow,
+            cfg.atoPct == null ? null : cfg.atoPct, cfg.atcPct == null ? null : cfg.atcPct);
           if (result.error) {
             alert('Không thể Tiếp tục Auto TWAP: ' + result.error);
             return;
@@ -1958,11 +2054,15 @@
       }
       // "Sửa lệnh tổng" enable theo đúng luật của "Hủy từ Fix Net"
       enabled.edit = enabled.fixnet;
-      // Route Manual: không thể sửa/hủy qua Fix Net — chỉ áp dụng cho lệnh Broker
+      // Route Manual: không sửa lệnh tổng qua Fix Net — "Sửa lệnh tổng" chỉ áp dụng cho lệnh Broker.
+      // Riêng "Huỷ từ Fix Net" áp dụng cho MỌI lệnh, không phân biệt Route.
       var selectedTr = selectedOrderId ? document.getElementById('row-' + selectedOrderId) : null;
       if (selectedTr && selectedTr.dataset.route === 'Manual') {
         enabled.edit = false;
-        enabled.fixnet = false;
+      } else if (selectedTr && status === 'Chờ xác nhận đặt') {
+        // Route Broker: lệnh đã đặt nhưng CHƯA ACK vẫn được sửa Giá/KL (sửa trước khi xác nhận).
+        // Sửa xong lệnh vẫn nằm ở "Chờ xác nhận đặt", chờ ACK/REJECT như cũ.
+        enabled.edit = true;
       }
       // ACK, REJECT, Sửa lệnh tổng, Huỷ từ Fix Net, Detail chỉ active khi có 1 dòng lệnh tổng đang được chọn
       document.getElementById('btn-ack').classList.toggle('disabled', !enabled.ack || !selectedOrderId);
@@ -1970,7 +2070,13 @@
       // "Đặt lệnh tổng" luôn bấm được — chỉ có 2 trạng thái: sẵn sàng / đang đặt lệnh tổng (xem startNewOrderEntry)
       document.getElementById('btn-toolbar-edit').classList.toggle('disabled', !enabled.edit || !selectedOrderId);
       document.getElementById('btn-toolbar-fixnet').classList.toggle('disabled', !enabled.fixnet || !selectedOrderId);
-      document.getElementById('btn-toolbar-done4day').classList.toggle('disabled', !enabled.done4day);
+      // "Done 4 Day" = chốt lệnh cuối ngày → chỉ enable sau giờ giao dịch (sau 15:00)
+      var done4dayBtn = document.getElementById('btn-toolbar-done4day');
+      var afterHours = isAfterTradingHours();
+      // Luật trạng thái giống "Huỷ từ Fix Net": lệnh Khớp hết / Đã hủy / Từ chối và các trạng thái
+      // chờ xác nhận đều không cho Done 4 Day; đồng thời phải có 1 dòng lệnh tổng đang được chọn.
+      done4dayBtn.classList.toggle('disabled', !enabled.done4day || !afterHours || !selectedOrderId);
+      done4dayBtn.title = afterHours ? '' : 'Chỉ thực hiện được sau giờ giao dịch (sau 15:00)';
       document.getElementById('btn-toolbar-detail').classList.toggle('disabled', !enabled.detail || !selectedOrderId);
       document.getElementById('btn-toolbar-refresh').classList.toggle('disabled', !enabled.refresh);
       refreshAutoTwapButtonState();
@@ -2109,14 +2215,17 @@
       openModal('modal-bulk-cancel-child');
     }
 
+    // Đánh dấu 1 lệnh con là Đã hủy — dùng chung cho hủy lẻ / hủy hàng loạt / hủy theo lệnh tổng
+    function markChildCancelled(tr) {
+      var statusEl = tr.querySelector('.col-child-status');
+      statusEl.textContent = 'Đã hủy';
+      statusEl.className = 'col-child-status badge-cancelled';
+      tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
+      disableChildRowActions(tr);
+    }
+
     function confirmChildBulkCancel() {
-      pendingBulkCancelRows.forEach(function (tr) {
-        var statusEl = tr.querySelector('.col-child-status');
-        statusEl.textContent = 'Đã hủy';
-        statusEl.className = 'col-child-status badge-cancelled';
-        tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
-        disableChildRowActions(tr);
-      });
+      pendingBulkCancelRows.forEach(markChildCancelled);
       if (selectedOrderId) updateOrderAggregates(selectedOrderId);
       updateChildTotals();
       pendingBulkCancelRows = [];
@@ -2127,14 +2236,53 @@
     function cancelChildOrders(orderId) {
       document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]')
         .forEach(function (tr) {
-          var el = tr.querySelector('.col-child-status');
-          if (el.textContent.trim() === 'Đã hủy') return; // đã hủy sẵn rồi, không đụng lại KL còn lại
-          el.textContent = 'Đã hủy';
-          el.className = 'col-child-status badge-cancelled';
-          tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
-          disableChildRowActions(tr);
+          var st = tr.querySelector('.col-child-status').textContent.trim();
+          if (st === 'Đã hủy') return;  // đã hủy sẵn rồi, không đụng lại KL còn lại
+          if (st === 'Khớp hết') return; // đã khớp hết thì không còn KL để hủy — giữ nguyên trạng thái khớp
+          markChildCancelled(tr);
         });
       updateOrderAggregates(orderId);
+    }
+
+    // Lệnh con còn hiệu lực và còn KL chờ khớp của 1 lệnh tổng, kèm KL đã khớp của cả lệnh tổng.
+    // "Chờ khớp" = KL đặt − KL khớp của các lệnh con chưa bị hủy/chưa bị thay bằng lệnh sửa (= REM PLACE).
+    function collectChildQtyState(orderId) {
+      var matched = 0, pending = 0, cancellable = [];
+      var rows = document.querySelectorAll('#child-tbody tr[data-parent-id="' + orderId + '"]');
+      Array.prototype.forEach.call(rows, function (r, idx) {
+        var qty = parseQty(r.querySelector('.col-child-qty').textContent);
+        var matchEl = r.querySelector('.col-child-matchqty');
+        var matchQty = matchEl ? parseQty(matchEl.textContent) : 0;
+        matched += matchQty; // phần đã khớp luôn là khớp thật, kể cả lệnh con đã hủy/đã sửa
+        var st = r.querySelector('.col-child-status').textContent.trim();
+        if (st === 'Đã hủy' || st === 'Đã sửa') return; // không còn hiệu lực
+        var remain = qty - matchQty;
+        if (remain <= 0) return;                        // đã khớp hết → không còn KL để hủy
+        pending += remain;
+        cancellable.push({
+          tr: r, remain: remain, idx: idx,
+          time: timeToMinutes(r.querySelector('.col-child-time').textContent.trim())
+        });
+      });
+      return { matched: matched, pending: pending, cancellable: cancellable };
+    }
+
+    // Sửa GIẢM khối lượng lệnh tổng: chỉ hủy lệnh con khi KL đã khớp + KL chờ khớp > KL mới.
+    // Hủy LẦN LƯỢT TỪ LỆNH ĐẶT GẦN NHẤT tới xa nhất, dừng ngay khi đã thỏa điều kiện.
+    // Trả về số lệnh con đã bị hủy (0 = không cần hủy gì).
+    function cancelExcessChildOrders(orderId, newQty) {
+      var state = collectChildQtyState(orderId);
+      var total = state.matched + state.pending;
+      if (total <= newQty) return 0; // KL mới vẫn đủ chỗ cho phần đã khớp + đang chờ khớp
+      state.cancellable.sort(function (a, b) { return b.time - a.time || b.idx - a.idx; });
+      var count = 0;
+      for (var i = 0; i < state.cancellable.length && total > newQty; i++) {
+        markChildCancelled(state.cancellable[i].tr);
+        total -= state.cancellable[i].remain; // hủy lệnh con chỉ bỏ được phần CHƯA khớp
+        count++;
+      }
+      if (count) updateChildTotals();
+      return count;
     }
 
     function openModal(id) { document.getElementById(id).hidden = false; }
@@ -2272,18 +2420,40 @@
       openModal('modal-ack');
     }
 
-    // ACK khi lệnh tổng đang "Chờ xác nhận sửa" — xác nhận xong quay về "Đã gửi"
+    // ACK khi lệnh tổng đang "Chờ xác nhận sửa" — xác nhận xong áp dụng giá/KL mới, quay về "Đã gửi".
+    // Giá/KL trên dòng lệnh là giá trị CŨ; giá trị SỬA nằm ở data-pending-price/data-pending-qty.
     function openAckEditModal(tr) {
-      document.getElementById('ackedit-summary').textContent = tr.dataset.side + ' ' + tr.dataset.symbol + ' ' + tr.dataset.qty;
-      document.getElementById('ackedit-symbol').textContent = tr.dataset.symbol;
-      document.getElementById('ackedit-price').textContent = formatPrice(parseQty(tr.dataset.price));
+      var isBuy = tr.dataset.side === 'Mua';
+      document.getElementById('ackedit-header-symbol').textContent = tr.dataset.symbol;
+      var sideHeaderEl = document.getElementById('ackedit-header-side');
+      sideHeaderEl.textContent = isBuy ? 'MUA' : 'BÁN';
+      sideHeaderEl.className = 'modal-order-side ' + (isBuy ? 'buy' : 'sell');
+
+      // Không có yêu cầu sửa kèm theo (dữ liệu cũ) → hiển thị giá trị hiện tại ở cả 2 cột
+      var priceBefore = tr.dataset.price;
+      var qtyBefore = tr.dataset.qty;
+      var priceAfter = tr.dataset.pendingPrice || priceBefore;
+      var qtyAfter = tr.dataset.pendingQty || qtyBefore;
+
+      setKvCompare('ackedit-price-before', 'ackedit-price-after',
+        formatPrice(parseQty(priceBefore)), formatPrice(parseQty(priceAfter)));
+      setKvCompare('ackedit-qty-before', 'ackedit-qty-after', qtyBefore, qtyAfter);
       document.getElementById('ackedit-orderid').textContent = tr.dataset.orderId;
       openModal('modal-ack-edit');
+    }
+
+    // Đổ cặp giá trị trước/sau vào popup, tô vàng ô "sau sửa" khi có thay đổi
+    function setKvCompare(beforeId, afterId, beforeText, afterText) {
+      document.getElementById(beforeId).textContent = beforeText;
+      var afterEl = document.getElementById(afterId);
+      afterEl.textContent = afterText;
+      afterEl.classList.toggle('kv-changed', beforeText !== afterText);
     }
 
     function confirmAckEdit() {
       var tr = requireSelectedRow();
       if (!tr) { closeModal('modal-ack-edit'); return; }
+      applyPendingEdit(tr); // ACK đồng ý → giá/KL mới có hiệu lực trên lệnh tổng
       setOrderStatus(tr, 'Đã gửi');
       // ACK đồng ý yêu cầu sửa: nếu Auto TWAP đang Hoạt động thì tự động chuyển Tạm dừng — broker cần
       // xem lại kế hoạch (bấm "Tiếp tục" sẽ tự tính lại theo tham số mới sau khi sửa) trước khi chạy tiếp.
@@ -2298,6 +2468,32 @@
       }
       refreshAutoTwapButtonState();
       closeModal('modal-ack-edit');
+    }
+
+    // Áp dụng giá/KL của yêu cầu sửa đang chờ ACK lên dòng lệnh tổng (giống saveParentOrderEdit)
+    function applyPendingEdit(tr) {
+      if (!tr.dataset.pendingPrice && !tr.dataset.pendingQty) return;
+      var price = formatQty(parseQty(tr.dataset.pendingPrice || tr.dataset.price));
+      var qty = formatQty(parseQty(tr.dataset.pendingQty || tr.dataset.qty));
+      tr.dataset.price = price;
+      tr.dataset.qty = qty;
+      var priceTd = tr.querySelector('.col-price');
+      if (priceTd) priceTd.textContent = formatPrice(parseQty(price));
+      var qtyTd = tr.querySelector('.col-qty');
+      if (qtyTd) qtyTd.textContent = qty;
+      var netvalueTd = tr.querySelector('.col-netvalue');
+      if (netvalueTd) netvalueTd.textContent = formatQty(parseQty(qty) * parseQty(price));
+      discardPendingEdit(tr);
+      // Giảm KL lệnh tổng → hủy bớt lệnh con chờ khớp nếu cần (xem cancelExcessChildOrders)
+      cancelExcessChildOrders(tr.dataset.orderId, parseQty(qty));
+      updateOrderAggregates(tr.dataset.orderId);
+      if (selectedOrderId === tr.dataset.orderId) loadOrderToForm(tr);
+    }
+
+    // Bỏ yêu cầu sửa đang chờ (ACK xong hoặc REJECT) — lệnh giữ nguyên giá/KL cũ
+    function discardPendingEdit(tr) {
+      delete tr.dataset.pendingPrice;
+      delete tr.dataset.pendingQty;
     }
 
     function confirmAck() {
@@ -2329,6 +2525,7 @@
         var matched = parseQty(tr.querySelector('.col-fillqty').textContent);
         var qtyTotal = parseQty(tr.dataset.qty);
         var revertStatus = matched <= 0 ? 'Đã gửi' : (matched >= qtyTotal ? 'Khớp hết' : 'Khớp 1 phần');
+        discardPendingEdit(tr); // từ chối yêu cầu sửa → giá/KL mới không được áp dụng
         setOrderStatus(tr, revertStatus);
       } else {
         setOrderStatus(tr, 'Từ chối');
@@ -3669,6 +3866,7 @@
       if (!tr || !priceInput || !qty) return;
       // Ô Giá nhập theo đơn vị nghìn → quy đổi về giá thật trước khi lưu
       var price = formatQty(parsePrice(priceInput));
+      qty = formatQty(parseQty(qty)); // KL gõ tay chưa có dấu phân cách nghìn — chuẩn hóa như lúc render
 
       tr.dataset.price = price;
       tr.dataset.qty = qty;
@@ -3679,6 +3877,8 @@
       var netvalueTd = tr.querySelector('.col-netvalue');
       if (netvalueTd) netvalueTd.textContent = formatQty(parseQty(qty) * parseQty(price));
 
+      // Giảm KL lệnh tổng → hủy bớt lệnh con chờ khớp nếu cần (xem cancelExcessChildOrders)
+      cancelExcessChildOrders(tr.dataset.orderId, parseQty(qty));
       // Xác nhận xong là áp dụng ngay, lệnh vẫn ở trạng thái hoạt động — không qua bước chờ ACK
       updateOrderAggregates(tr.dataset.orderId);
 
@@ -3733,11 +3933,7 @@
     function confirmCancelChild() {
       if (!cancellingChildRow) return;
       var tr = cancellingChildRow;
-      var statusEl = tr.querySelector('.col-child-status');
-      statusEl.textContent = 'Đã hủy';
-      statusEl.className = 'col-child-status badge-cancelled';
-      tr.querySelector('.col-child-remain').textContent = '0'; // Lệnh đã hủy thì KL còn lại luôn = 0
-      disableChildRowActions(tr);
+      markChildCancelled(tr);
       updateOrderAggregates(tr.dataset.parentId);
       updateChildTotals();
       closeModal('modal-cancel-child');
@@ -3764,6 +3960,9 @@
           'data-fillqty="' + formatQty(o.fillQty) + '" data-avgpx="' + o.avgPx + '" data-vwap="' + o.vwap + '" ' +
           'data-instructions="' + o.instructions + '" data-note="' + o.note + '" data-marketvol="' + formatQty(o.marketVol) + '" ' +
           'data-ordertype="' + o.orderType + '" data-route="' + o.route + '" ' +
+          // Yêu cầu sửa đang chờ ACK (nếu có): giá/KL sẽ áp dụng khi broker xác nhận
+          (o.pendingEdit ? 'data-pending-price="' + formatQty(o.pendingEdit.price) + '" ' +
+            'data-pending-qty="' + formatQty(o.pendingEdit.qty) + '" ' : '') +
           'data-autotwap="' + (o.autoTwap || 'none') + '">' +
           '<td><span class="status-dot"></span></td>' +
           '<td>' + o.route + '</td>' +
@@ -3888,6 +4087,12 @@
     filterChildOrders(selectedOrderId);
     updateToolbar(null);
     document.getElementById('btn-child-bulk-cancel').classList.toggle('disabled', !selectedOrderId);
+
+    // Qua mốc 15:00 thì "Done 4 Day" tự mở mà không cần chọn lại dòng — kiểm tra mỗi 30 giây
+    setInterval(function () {
+      var tr = selectedOrderId ? document.getElementById('row-' + selectedOrderId) : null;
+      updateToolbar(tr ? orderStatus(tr) : null);
+    }, 30000);
 
     // Tính KL đã đặt / KL hủy ban đầu cho từng lệnh tổng dựa trên dữ liệu lệnh con mẫu
     document.querySelectorAll('#bbg-tbody tr').forEach(function (r) {
